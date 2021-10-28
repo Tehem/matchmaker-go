@@ -30,6 +30,9 @@ func main() {
 	solution, err := LoadPlan(yml)
 	util.PanicOnError(err, "Can't get solution from planning file")
 
+	// calendar owner
+	masterEmail := "thomas.marcon@swile.co"
+
 	for _, session := range solution.Sessions {
 		attendees := []*calendar.EventAttendee{}
 
@@ -39,13 +42,30 @@ func main() {
 			})
 		}
 
-		_, err := cal.Events.Insert("thomas.marcon@swile.co", &calendar.Event{
+		// add owner as optional
+		attendees = append(attendees, &calendar.EventAttendee{
+			Email:    masterEmail,
+			Optional: true,
+		})
+
+		_, err := cal.Events.Insert(masterEmail, &calendar.Event{
 			Start: &calendar.EventDateTime{
 				DateTime: gcalendar.FormatTime(session.Range.Start),
 			},
 			End: &calendar.EventDateTime{
 				DateTime: gcalendar.FormatTime(session.Range.End),
 			},
+			//ConferenceData: &calendar.ConferenceData{
+			//	CreateRequest: &calendar.CreateConferenceRequest{
+			//		RequestId: "<RANDOM_VALUE>",
+			//		ConferenceSolutionKey: &calendar.ConferenceSolutionKey{
+			//			Type: "hangoutsMeet",
+			//		},
+			//		Status: &calendar.ConferenceRequestStatus{
+			//			StatusCode: "success",
+			//		},
+			//	},
+			//},
 			Summary:         session.GetDisplayName(),
 			Attendees:       attendees,
 			GuestsCanModify: true,
