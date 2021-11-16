@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
+	"github.com/Tehem/matchmaker-go/gcalendar"
+	"github.com/Tehem/matchmaker-go/match"
+	"github.com/Tehem/matchmaker-go/util"
 	logrus2 "github.com/sirupsen/logrus"
 	logger "github.com/transcovo/go-chpr-logger"
-	"github.com/transcovo/matchmaker/gcalendar"
-	"github.com/transcovo/matchmaker/match"
-	"github.com/transcovo/matchmaker/util"
 	"google.golang.org/api/calendar/v3"
 	"io/ioutil"
 	"os"

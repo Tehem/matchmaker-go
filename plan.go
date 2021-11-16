@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/Tehem/matchmaker-go/gcalendar"
+	"github.com/Tehem/matchmaker-go/match"
+	"github.com/Tehem/matchmaker-go/util"
 	"github.com/transcovo/go-chpr-logger"
-	"github.com/transcovo/matchmaker/gcalendar"
-	"github.com/transcovo/matchmaker/match"
-	"github.com/transcovo/matchmaker/util"
 	"google.golang.org/api/calendar/v3"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"

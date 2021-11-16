@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/transcovo/matchmaker/match"
-	"github.com/transcovo/matchmaker/util"
+	"github.com/Tehem/matchmaker-go/match"
+	"github.com/Tehem/matchmaker-go/util"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"log"

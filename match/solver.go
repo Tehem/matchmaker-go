@@ -2,9 +2,9 @@ package match
 
 import (
 	"fmt"
+	"github.com/Tehem/matchmaker-go/util"
 	"github.com/sirupsen/logrus"
 	"github.com/transcovo/go-chpr-logger"
-	"github.com/transcovo/matchmaker/util"
 	"os"
 	"os/signal"
 	"sort"

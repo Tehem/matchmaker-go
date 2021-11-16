@@ -1,4 +1,5 @@
 /.idea/
+/vendor/
 /client_secret.json
 /persons.yml
 /problem.yml
