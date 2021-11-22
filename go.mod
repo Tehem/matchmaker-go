@@ -5,20 +5,29 @@ go 1.17
 require (
 	github.com/sirupsen/logrus v1.0.4-0.20170822132746-89742aefa4b2
 	github.com/transcovo/go-chpr-logger v0.0.0-20170621142821-02914b15a555
-	golang.org/x/net v0.0.0-20170828231752-66aacef3dd8a
-	golang.org/x/oauth2 v0.0.0-20170901193052-d89af98d7c6b
+	golang.org/x/net v0.0.0-20210428140749-89ef3d95e781
+	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	google.golang.org/api v0.0.0-20170902000419-f5fa6a3eed63
-	gopkg.in/yaml.v2 v2.0.0-20170812160011-eb3733d160e7
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 require (
-	cloud.google.com/go v0.12.1-0.20170831101736-2b74e2e25316 // indirect
+	cloud.google.com/go v0.34.0 // indirect
 	github.com/certifi/gocertifi v0.0.0-20170727155124-3fd9e1adb12b // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evalphobia/logrus_sentry v0.4.2 // indirect
 	github.com/getsentry/raven-go v0.0.0-20170614100719-d175f85701df // indirect
-	github.com/golang/protobuf v0.0.0-20170902000452-17ce1425424a // indirect
+	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/pkg/errors v0.8.1-0.20170505043639-c605e284fe17 // indirect
-	golang.org/x/crypto v0.0.0-20170825220121-81e90905daef // indirect
-	golang.org/x/sys v0.0.0-20170901181214-7ddbeae9ae08 // indirect
-	google.golang.org/appengine v1.0.1-0.20170814190942-d9a072cfa7b9 // indirect
+	github.com/stretchr/testify v1.5.1 // indirect
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
+	golang.org/x/sys v0.0.0-20210423082822-04245dca01da // indirect
+	golang.org/x/text v0.3.6 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	google.golang.org/appengine v1.4.0 // indirect
+	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55 // indirect
+	google.golang.org/grpc v1.29.1 // indirect
+	google.golang.org/protobuf v1.26.0 // indirect
+	gopkg.in/airbrake/gobrake.v2 v2.0.9 // indirect
+	gopkg.in/gemnasium/logrus-airbrake-hook.v2 v2.1.2 // indirect
 )

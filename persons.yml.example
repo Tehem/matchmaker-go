@@ -1,0 +1,20 @@
+- email: senior.dev@example.local
+  isgoodreviewer: true
+  maxsessionsperweek: 2
+  skills:
+    - frontend
+    - backend
+- email: backend.dev@example.local
+  isgoodreviewer: true
+  maxsessionsperweek: 1
+  skills:
+    - backend
+- email: fullstack.dev@example.local
+  maxsessionsperweek: 2
+  skills:
+    - frontend
+    - backend
+- email: junior.dev@example.local
+  maxsessionsperweek: 3
+  skills:
+    - frontend
