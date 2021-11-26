@@ -11,12 +11,15 @@ Requires: [Go](https://golang.org/dl/) >= 1.17.x
 
 ## Setup Google Calendar API Access
 
+You need to setup a Google Cloud Platform project with the Google Calendar API enabled.
+To create a project and enable an API, refer to [this documentation](https://developers.google.com/workspace/guides/create-project).
+
 This simple app queries Google Calendar API as yourself, so you need to
 have the authorization to create events and query availabilities on all
 of the listed people's calendars.
 
-You can follow the steps described here to setup credentials :
-https://github.com/googleapis/google-api-nodejs-client#oauth2-client
+You can follow the steps described [here](https://github.com/googleapis/google-api-nodejs-client#oauth2-client) to 
+setup an OAuth2 clien for the application.
 
 Copy `client_secret.json.example` into a new `client_secret.json` file and
 replace values for `client_id`, `client_secret` and `project_id` (id
@@ -27,7 +30,7 @@ de client OAuth).
 Once your credentials are set, you need to allow this app to use your
 credentials. Just launch the script :
 
-    go run gcalendar/quickstart.go
+    go run quickstart.go
 
 
 If you get an error :
