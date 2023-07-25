@@ -1,14 +1,14 @@
-package main
+package commands
 
 import (
-	"flag"
-	"github.com/Tehem/matchmaker-go/gcalendar"
-	"github.com/Tehem/matchmaker-go/match"
-	"github.com/Tehem/matchmaker-go/util"
 	logrus2 "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
 	logger "github.com/transcovo/go-chpr-logger"
 	"google.golang.org/api/calendar/v3"
 	"io/ioutil"
+	"matchmaker/libs"
+	"matchmaker/libs/gcalendar"
+	"matchmaker/util"
 	"os"
 	"time"
 )
@@ -28,7 +28,7 @@ func FirstDayOfISOWeek(weekShift int) time.Time {
 	return date
 }
 
-func GetWorkRange(beginOfWeek time.Time, day int, startHour int, startMinute int, endHour int, endMinute int) *match.Range {
+func GetWorkRange(beginOfWeek time.Time, day int, startHour int, startMinute int, endHour int, endMinute int) *libs.Range {
 	start := time.Date(
 		beginOfWeek.Year(),
 		beginOfWeek.Month(),
@@ -49,19 +49,19 @@ func GetWorkRange(beginOfWeek time.Time, day int, startHour int, startMinute int
 		0,
 		beginOfWeek.Location(),
 	)
-	return &match.Range{
+	return &libs.Range{
 		Start: start,
 		End:   end,
 	}
 }
 
-func GetWeekWorkRanges(beginOfWeek time.Time) chan *match.Range {
-	ranges := make(chan *match.Range)
+func GetWeekWorkRanges(beginOfWeek time.Time) chan *libs.Range {
+	ranges := make(chan *libs.Range)
 
 	go func() {
 		for day := 0; day < 5; day++ {
 			ranges <- GetWorkRange(beginOfWeek, day, 10, 0, 12, 0)
-			ranges <- GetWorkRange(beginOfWeek, day, 14, 0, 18, 30)
+			ranges <- GetWorkRange(beginOfWeek, day, 14, 0, 18, 0)
 		}
 		close(ranges)
 	}()
@@ -75,16 +75,16 @@ func parseTime(dateStr string) time.Time {
 	return result
 }
 
-func ToSlice(c chan *match.Range) []*match.Range {
-	s := make([]*match.Range, 0)
+func ToSlice(c chan *libs.Range) []*libs.Range {
+	s := make([]*libs.Range, 0)
 	for r := range c {
 		s = append(s, r)
 	}
 	return s
 }
 
-func loadProblem(weekShift int) *match.Problem {
-	people, err := match.LoadPersons("./persons.yml")
+func loadProblem(weekShift int) *libs.Problem {
+	people, err := libs.LoadPersons("./persons.yml")
 	util.PanicOnError(err, "Can't load people")
 	logger.WithField("count", len(people)).Info("People loaded")
 
@@ -96,7 +96,7 @@ func loadProblem(weekShift int) *match.Problem {
 	logger.WithField("weekFirstDay", beginOfWeek).Info("Planning for week")
 
 	workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
-	busyTimes := []*match.BusyTime{}
+	busyTimes := []*libs.BusyTime{}
 	for _, person := range people {
 		personLogger := logger.WithField("person", person.Email)
 		personLogger.Info("Loading busy detail")
@@ -119,9 +119,9 @@ func loadProblem(weekShift int) *match.Problem {
 			println(person.Email + ":")
 			for _, busyTimePeriod := range busyTimePeriods {
 				println("  - " + busyTimePeriod.Start + " -> " + busyTimePeriod.End)
-				busyTimes = append(busyTimes, &match.BusyTime{
+				busyTimes = append(busyTimes, &libs.BusyTime{
 					Person: person,
-					Range: &match.Range{
+					Range: &libs.Range{
 						Start: parseTime(busyTimePeriod.Start),
 						End:   parseTime(busyTimePeriod.End),
 					},
@@ -129,7 +129,7 @@ func loadProblem(weekShift int) *match.Problem {
 			}
 		}
 	}
-	return &match.Problem{
+	return &libs.Problem{
 		People:         people,
 		WorkRanges:     workRanges,
 		BusyTimes:      busyTimes,
@@ -137,14 +137,27 @@ func loadProblem(weekShift int) *match.Problem {
 	}
 }
 
+func init() {
+	prepareCmd.Flags().IntVarP(&weekShift, "week-shift", "w", 0, `define a week shift to plan for an upcoming 
+week instead of next week. Default value (0) is next week, and 1 is the week after, etc.`)
+
+	rootCmd.AddCommand(prepareCmd)
+}
+
 // One flag 'week-shift' can be set to plan for an upcoming week instead of next week
 // Default = 0 (planning for next week)
 // 1 = in two weeks, 2 = in 3 weeks, etc.
-func main() {
-	weekShiftPtr := flag.Int("week-shift", 0, "Week shift")
-	flag.Parse()
+var weekShift int
 
-	problem := loadProblem(*weekShiftPtr)
-	yml, _ := problem.ToYaml()
-	ioutil.WriteFile("./problem.yml", yml, os.FileMode(0644))
+var prepareCmd = &cobra.Command{
+	Use:   "prepare",
+	Short: "Retrieve available slots for people and parameters for the matching algorithm.",
+	Long: `Compute work ranges for the target week, and check free slots for each potential
+reviewer and create an output file 'problem.yml'.`,
+	Run: func(cmd *cobra.Command, args []string) {
+
+		problem := loadProblem(weekShift)
+		yml, _ := problem.ToYaml()
+		ioutil.WriteFile("./problem.yml", yml, os.FileMode(0644))
+	},
 }

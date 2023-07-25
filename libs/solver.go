@@ -1,10 +1,10 @@
-package match
+package libs
 
 import (
 	"fmt"
-	"github.com/Tehem/matchmaker-go/util"
 	"github.com/sirupsen/logrus"
-	"github.com/transcovo/go-chpr-logger"
+	logger "github.com/transcovo/go-chpr-logger"
+	"matchmaker/util"
 	"os"
 	"os/signal"
 	"sort"

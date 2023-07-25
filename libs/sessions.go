@@ -1,4 +1,4 @@
-package match
+package libs
 
 import (
 	"time"
@@ -18,7 +18,7 @@ func (session *ReviewSession) Start() time.Time {
 }
 
 func (session *ReviewSession) GetDisplayName() string {
-	return "Review " + session.Reviewers.GetDisplayName()
+	return sessionName + session.Reviewers.GetDisplayName()
 }
 
 func generateSessions(squads []*Squad, ranges []*Range) []*ReviewSession {

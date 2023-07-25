@@ -1,4 +1,4 @@
-package match
+package libs
 
 import (
 	"gopkg.in/yaml.v2"
@@ -20,7 +20,10 @@ func LoadPersons(path string) ([]*Person, error) {
 	}
 
 	var persons []*Person
-	yaml.Unmarshal(data, &persons)
+	err = yaml.Unmarshal(data, &persons)
+	if err != nil {
+		return nil, err
+	}
 
 	return persons, nil
 }

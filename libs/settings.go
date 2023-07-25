@@ -1,4 +1,4 @@
-package match
+package libs
 
 import "time"
 
@@ -13,3 +13,5 @@ var defaultMaxSessionsPerWeek = 2
 var maxWidthExploration = 2
 
 var maxExplorationPathLength = 10
+
+var sessionName = "Pairing"

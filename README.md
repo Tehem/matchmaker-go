@@ -8,6 +8,16 @@ Requires: [Go](https://golang.org/dl/) >= 1.17.x
 
     go install
 
+## Build the app
+
+    go build
+
+## Run the app
+
+You can now run the binary:
+
+    ./matchmaker
+
 
 ## Setup Google Calendar API Access
 
@@ -15,23 +25,29 @@ You need to setup a Google Cloud Platform project with the Google Calendar API e
 To create a project and enable an API, refer to [this documentation](https://developers.google.com/workspace/guides/create-project).
 
 This simple app queries Google Calendar API as yourself, so you need to
-have the authorization to create events and query availabilities on all
-of the listed people's calendars.
+have the authorization to create events and query availabilities on all the listed people's calendars.
 
 You can follow the steps described [here](https://github.com/googleapis/google-api-nodejs-client#oauth2-client) to 
-setup an OAuth2 client for the application.
+set up an OAuth2 client for the application.
 
-Copy `client_secret.json.example` into a new `client_secret.json` file and
-replace values for `client_id`, `client_secret` and `project_id` (id
-de client OAuth).
+Copy `client_secret.json.example` into a new `client_secret.json` file and replace values 
+for `client_id`, `client_secret` and `project_id`.
 
 ## Get an access token
 
 Once your credentials are set, you need to allow this app to use your
-credentials. Just launch the script :
+credentials. Just launch the command :
 
-    go run quickstart.go
+    matchmaker token
 
+You should get a new browser window opening with a Google consent screen. If not you can 
+open the url indicated in the command line :
+
+    Authorize this app at: https://accounts.google.com/o/oauth2/auth?client_id=...
+
+Grant access to the app by ignoring any security warning about the app not being verified.
+Your token will be stored into a `calendar-api.json.json` file in your `~/.credentials` folder and a query to your
+calendar will be made with it to test it, you should see the output in the console.
 
 If you get an error :
 
@@ -46,17 +62,7 @@ You need to delete the credential file `~/.credentials/calendar-api.json`:
 
     rm ~/.credentials/calendar-api.json
 
-Then retry the script to create the token.
-
-You should get a new browser window opening with a Google consent screen. If not you can 
-open the url indicated in the command line :
-
-    Authorize this app at: https://accounts.google.com/o/oauth2/auth?client_id=...
-
-
-Grant access to the app by ignoring any security warning about the app not being verified.
-Your token will be stored into a `calendar-api.json.json` file in your `~/.credentials` folder and a query to your
-calendar will be made with it to test it, you should see the output in the console.
+Then retry the command to create the token.
 
 ## Setup
 
@@ -79,44 +85,37 @@ Format example:
   maxsessionsperweek: 1
 - email: obi-wan.kenobi@example.com
 ```
-**isgoodreviewer** [optional] is used to distinguish the experienced reviewers in order to create reviewer pairs that contain at least one experienced reviewer. Default value is false.
-**maxsessionsperweek** [optional] sets a custom max sessions number per week for a reviewer. Default is 3. If set to 0, it also falls back to the default value.
-**skills** [optional] describes the areas of expertise of a reviewer in order to create pairs of people with same competences. If not specified the reviewer can be paired with any other reviewer (no matter the skills)
+**isgoodreviewer** [optional] is used to distinguish the experienced reviewers in order to create reviewer pairs 
+that contain at least one experienced reviewer. Default value is false.
+**maxsessionsperweek** [optional] sets a custom max sessions number per week for a reviewer. Default is 3. 
+If set to 0, it also falls back to the default value.
+**skills** [optional] describes the areas of expertise of a reviewer in order to create pairs of people with 
+same competences. If not specified the reviewer can be paired with any other reviewer (no matter the skills)
 
 Copy the provided example file `persons.yml.example` into a new `persons.yml` file and replace values with actual users.
 
 TEMP / TO REMOVE :
-Adapt the master email in this file : `plan.go:34`
-
+Adapt the master email in this file : `commands/plan.go:43`
 
 ## Preparing
 
-    go run prepare.go [-week-shift value [default=0]]
+    matchmaker prepare [--week-shift value [default=0]]
 
-This script will compute work ranges for the target week, and check free slots for each potential
+This command will compute work ranges for the target week, and check free slots for each potential
 reviewer and create an output file `problem.yml`.
 
-By default, the script plans for the upcoming monday, you can provide a `weekShift` value as a parameter, allowing
+By default, the command plans for the upcoming monday, you can provide a `weekShift` value as a parameter, allowing
 to plan for further weeks (1 = the week after upcoming monday, etc.)
 
 ## Matching
 
-    go run match.go
+    matchmaker match
 
-This script will take input from the `match.yml` file and match reviewers together in review slots for the target week.
+This command will take input from the `problem.yml` file and match reviewers together in review slots for the target week.
 The output is a `planning.yml` file with reviewers couples and planned slots.
 
 ## Planning
 
-    go run plan.go
+    matchmaker plan
 
-This script will take input from the `planning.yml` file and create review events in reviewers' calendar.
-
-
-## Default run
-
-By running the script:
-
-    ./do.sh
-
-All scripts will be run sequentially for the upcoming monday.
+This command will take input from the `planning.yml` file and create review events in reviewers' calendar.

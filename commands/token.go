@@ -1,9 +1,12 @@
-package main
+package commands
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -11,13 +14,11 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"time"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/calendar/v3"
+	"context"
+	"os/user"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -122,41 +123,51 @@ func saveToken(path string, token *oauth2.Token) {
 	json.NewEncoder(f).Encode(token)
 }
 
-func main() {
-	//ctx := context.Background()
-	b, err := ioutil.ReadFile("client_secret.json")
-	if err != nil {
-		log.Fatalf("Unable to read client secret file: %v", err)
-	}
+func init() {
+	rootCmd.AddCommand(tokenCmd)
+}
 
-	// If modifying these scopes, delete your previously saved token file
-	config, err := google.ConfigFromJSON(b, calendar.CalendarScope)
-	if err != nil {
-		log.Fatalf("Unable to parse client secret file to config: %v", err)
-	}
-	client := getClient(config)
+var tokenCmd = &cobra.Command{
+	Use:   "token",
+	Short: "Retrieve a Google Calendar API token.",
+	Long:  `Authorize the app to access your Google Agenda and get an auth token for Google Calendar API.`,
+	Run: func(cmd *cobra.Command, args []string) {
 
-	srv, err := calendar.New(client)
-	if err != nil {
-		log.Fatalf("Unable to retrieve Calendar client: %v", err)
-	}
-
-	t := time.Now().Format(time.RFC3339)
-	events, err := srv.Events.List("primary").ShowDeleted(false).
-		SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
-	if err != nil {
-		log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
-	}
-	fmt.Println("Upcoming events:")
-	if len(events.Items) == 0 {
-		fmt.Println("No upcoming events found.")
-	} else {
-		for _, item := range events.Items {
-			date := item.Start.DateTime
-			if date == "" {
-				date = item.Start.Date
-			}
-			fmt.Printf("%v (%v)\n", item.Summary, date)
+		//ctx := context.Background()
+		b, err := ioutil.ReadFile("client_secret.json")
+		if err != nil {
+			log.Fatalf("Unable to read client secret file: %v", err)
 		}
-	}
+
+		// If modifying these scopes, delete your previously saved token file
+		config, err := google.ConfigFromJSON(b, calendar.CalendarScope)
+		if err != nil {
+			log.Fatalf("Unable to parse client secret file to config: %v", err)
+		}
+		client := getClient(config)
+
+		srv, err := calendar.New(client)
+		if err != nil {
+			log.Fatalf("Unable to retrieve Calendar client: %v", err)
+		}
+
+		t := time.Now().Format(time.RFC3339)
+		events, err := srv.Events.List("primary").ShowDeleted(false).
+			SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
+		if err != nil {
+			log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
+		}
+		fmt.Println("Upcoming events:")
+		if len(events.Items) == 0 {
+			fmt.Println("No upcoming events found.")
+		} else {
+			for _, item := range events.Items {
+				date := item.Start.DateTime
+				if date == "" {
+					date = item.Start.Date
+				}
+				fmt.Printf("%v (%v)\n", item.Summary, date)
+			}
+		}
+	},
 }
