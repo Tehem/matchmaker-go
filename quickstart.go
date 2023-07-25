@@ -7,8 +7,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -28,26 +30,60 @@ func getClient(config *oauth2.Config) *http.Client {
 	if err != nil {
 		tok = getTokenFromWeb(config)
 		saveToken(cacheFile, tok)
+	} else {
+		log.Printf("Using cached token from %q", cacheFile)
 	}
 	return config.Client(context.Background(), tok)
 }
 
 // Request a token from the web, then returns the retrieved token.
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
+	ch := make(chan string)
+	randState := fmt.Sprintf("st%d", time.Now().UnixNano())
+	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/favicon.ico" {
+			http.Error(rw, "", 404)
+			return
+		}
+		if req.FormValue("state") != randState {
+			log.Printf("State doesn't match: req = %#v", req)
+			http.Error(rw, "", 500)
+			return
+		}
+		if code := req.FormValue("code"); code != "" {
+			fmt.Fprintf(rw, "<h1>Success</h1>Authorized.")
+			rw.(http.Flusher).Flush()
+			ch <- code
+			return
+		}
+		log.Printf("no code")
+		http.Error(rw, "", 500)
+	}))
+	defer ts.Close()
 
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		log.Fatalf("Unable to read authorization code: %v", err)
-	}
+	config.RedirectURL = ts.URL
+	authURL := config.AuthCodeURL(randState)
+	go openURL(authURL)
+	log.Printf("Authorize this app at: %s", authURL)
+	code := <-ch
+	log.Printf("Got code: %s", code)
 
-	tok, err := config.Exchange(context.TODO(), authCode)
+	tok, err := config.Exchange(context.TODO(), code)
 	if err != nil {
-		log.Fatalf("Unable to retrieve token from web: %v", err)
+		log.Fatalf("Token exchange error: %v", err)
 	}
 	return tok
+}
+
+func openURL(url string) {
+	try := []string{"xdg-open", "google-chrome", "open"}
+	for _, bin := range try {
+		err := exec.Command(bin, url).Run()
+		if err == nil {
+			return
+		}
+	}
+	log.Printf("Error opening URL in browser.")
 }
 
 // tokenCacheFile generates credential file path/filename.

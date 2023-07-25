@@ -19,7 +19,7 @@ have the authorization to create events and query availabilities on all
 of the listed people's calendars.
 
 You can follow the steps described [here](https://github.com/googleapis/google-api-nodejs-client#oauth2-client) to 
-setup an OAuth2 clien for the application.
+setup an OAuth2 client for the application.
 
 Copy `client_secret.json.example` into a new `client_secret.json` file and
 replace values for `client_id`, `client_secret` and `project_id` (id
@@ -48,14 +48,15 @@ You need to delete the credential file `~/.credentials/calendar-api.json`:
 
 Then retry the script to create the token.
 
-You should get a prompt to open an URL like this:
+You should get a new browser window opening with a Google consent screen. If not you can 
+open the url indicated in the command line :
 
-    Go to the following link in your browser then type the authorization code:: https://accounts.google.com/o/oauth2/v2/auth?access_type=offline&scope=https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcalendar.readonly&response_type=code&client_id=xxx.apps.googleusercontent.com&redirect_uri=urn%3Aietf%3Awg%3Aoauth%3A2.0%3Aoob
+    Authorize this app at: https://accounts.google.com/o/oauth2/auth?client_id=...
 
 
-Grant access and paste the provided code in the command line and press enter.
+Grant access to the app by ignoring any security warning about the app not being verified.
 Your token will be stored into a `calendar-api.json.json` file in your `~/.credentials` folder and a query to your
-calendar will be made with it to test it, you should see the output.
+calendar will be made with it to test it, you should see the output in the console.
 
 ## Setup
 
