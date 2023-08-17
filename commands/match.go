@@ -32,7 +32,7 @@ file with reviewers tuples and planned slots.`,
 			if err != nil {
 				log.Fatal(err)
 			}
-			pprof.StartCPUProfile(f)
+			_ = pprof.StartCPUProfile(f)
 			defer pprof.StopCPUProfile()
 		}
 
@@ -42,6 +42,7 @@ file with reviewers tuples and planned slots.`,
 		solution := libs.Solve(problem)
 
 		planYml, _ := yaml.Marshal(solution)
-		ioutil.WriteFile("./planning.yml", planYml, os.FileMode(0644))
+		writeErr := ioutil.WriteFile("./planning.yml", planYml, os.FileMode(0644))
+		util.PanicOnError(writeErr, "Can't yml planning result")
 	},
 }

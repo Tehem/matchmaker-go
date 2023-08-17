@@ -12,6 +12,10 @@ Requires: [Go](https://golang.org/dl/) >= 1.17.x
 
     go build
 
+## Install the app
+
+    go install
+
 ## Run the app
 
 You can now run the binary:

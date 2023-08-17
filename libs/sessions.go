@@ -1,6 +1,7 @@
 package libs
 
 import (
+	"github.com/spf13/viper"
 	"time"
 )
 
@@ -18,7 +19,8 @@ func (session *ReviewSession) Start() time.Time {
 }
 
 func (session *ReviewSession) GetDisplayName() string {
-	return sessionName + session.Reviewers.GetDisplayName()
+	sessionPrefix := viper.GetString("sessions.sessionPrefix")
+	return sessionPrefix + " - " + session.Reviewers.GetDisplayName()
 }
 
 func generateSessions(squads []*Squad, ranges []*Range) []*ReviewSession {

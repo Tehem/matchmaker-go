@@ -3,6 +3,7 @@ package commands
 import (
 	logrus2 "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	logger "github.com/transcovo/go-chpr-logger"
 	"google.golang.org/api/calendar/v3"
 	"io/ioutil"
@@ -60,8 +61,16 @@ func GetWeekWorkRanges(beginOfWeek time.Time) chan *libs.Range {
 
 	go func() {
 		for day := 0; day < 5; day++ {
-			ranges <- GetWorkRange(beginOfWeek, day, 10, 0, 12, 0)
-			ranges <- GetWorkRange(beginOfWeek, day, 14, 0, 18, 0)
+			ranges <- GetWorkRange(beginOfWeek, day,
+				viper.GetInt("workingHours.morning.start.hour"),
+				viper.GetInt("workingHours.morning.start.minute"),
+				viper.GetInt("workingHours.morning.end.hour"),
+				viper.GetInt("workingHours.morning.end.minute"))
+			ranges <- GetWorkRange(beginOfWeek, day,
+				viper.GetInt("workingHours.afternoon.start.hour"),
+				viper.GetInt("workingHours.afternoon.start.minute"),
+				viper.GetInt("workingHours.afternoon.end.hour"),
+				viper.GetInt("workingHours.afternoon.end.minute"))
 		}
 		close(ranges)
 	}()
@@ -85,11 +94,11 @@ func ToSlice(c chan *libs.Range) []*libs.Range {
 
 func loadProblem(weekShift int) *libs.Problem {
 	people, err := libs.LoadPersons("./persons.yml")
-	util.PanicOnError(err, "Can't load people")
-	logger.WithField("count", len(people)).Info("People loaded")
+	util.PanicOnError(err, "Cannot load people file")
+	logger.WithField("count", len(people)).Info("People file loaded")
 
 	cal, err := gcalendar.GetGoogleCalendarService()
-	util.PanicOnError(err, "Can't get gcalendar client")
+	util.PanicOnError(err, "Can't get Google Calendar client")
 	logger.Info("Connected to google calendar")
 
 	beginOfWeek := FirstDayOfISOWeek(weekShift)
@@ -158,6 +167,7 @@ reviewer and create an output file 'problem.yml'.`,
 
 		problem := loadProblem(weekShift)
 		yml, _ := problem.ToYaml()
-		ioutil.WriteFile("./problem.yml", yml, os.FileMode(0644))
+		err := ioutil.WriteFile("./problem.yml", yml, os.FileMode(0644))
+		util.PanicOnError(err, "Can't yml problem file")
 	},
 }
