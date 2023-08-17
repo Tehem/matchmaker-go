@@ -1,6 +1,7 @@
 package libs
 
 import (
+	"github.com/spf13/viper"
 	"math/rand"
 	"sort"
 	"time"
@@ -23,6 +24,11 @@ func (r *Range) Minutes() float64 {
 }
 
 func generateTimeRanges(workRanges []*Range) []*Range {
+
+	defaultDuration := viper.GetDuration("sessions.sessionDurationMinutes")
+	var durations = []time.Duration{
+		defaultDuration * time.Minute,
+	}
 	ranges := []*Range{}
 	for _, duration := range durations {
 		for _, workRange := range workRanges {

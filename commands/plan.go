@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	logger "github.com/transcovo/go-chpr-logger"
 	"google.golang.org/api/calendar/v3"
 	"gopkg.in/yaml.v2"
@@ -40,7 +42,7 @@ var planCmd = &cobra.Command{
 		util.PanicOnError(err, "Can't get solution from planning file")
 
 		// calendar owner
-		masterEmail := "thomas.marcon@swile.co"
+		masterEmail := viper.GetString("organizerEmail")
 
 		for _, session := range solution.Sessions {
 			attendees := []*calendar.EventAttendee{}
@@ -51,34 +53,42 @@ var planCmd = &cobra.Command{
 				})
 			}
 
-			// add owner as optional
-			attendees = append(attendees, &calendar.EventAttendee{
-				Email:    masterEmail,
-				Optional: true,
-			})
+			// take first attendee as organizer
+			organizer := attendees[0].Email
 
-			_, err := cal.Events.Insert(masterEmail, &calendar.Event{
+			// add master email as optional, and use it as organizer by default
+			if masterEmail != "" {
+				organizer = masterEmail
+				attendees = append(attendees, &calendar.EventAttendee{
+					Email:    masterEmail,
+					Optional: true,
+				})
+			}
+
+			_, err := cal.Events.Insert(organizer, &calendar.Event{
 				Start: &calendar.EventDateTime{
 					DateTime: gcalendar.FormatTime(session.Range.Start),
+					TimeZone: viper.GetString("workingHours.timezone"),
 				},
 				End: &calendar.EventDateTime{
 					DateTime: gcalendar.FormatTime(session.Range.End),
+					TimeZone: viper.GetString("workingHours.timezone"),
 				},
-				//ConferenceData: &calendar.ConferenceData{
-				//	CreateRequest: &calendar.CreateConferenceRequest{
-				//		RequestId: "<RANDOM_VALUE>",
-				//		ConferenceSolutionKey: &calendar.ConferenceSolutionKey{
-				//			Type: "hangoutsMeet",
-				//		},
-				//		Status: &calendar.ConferenceRequestStatus{
-				//			StatusCode: "success",
-				//		},
-				//	},
-				//},
+				ConferenceData: &calendar.ConferenceData{
+					CreateRequest: &calendar.CreateConferenceRequest{
+						RequestId: uuid.New().String(),
+						ConferenceSolutionKey: &calendar.ConferenceSolutionKey{
+							Type: "hangoutsMeet",
+						},
+						Status: &calendar.ConferenceRequestStatus{
+							StatusCode: "success",
+						},
+					},
+				},
 				Summary:         session.GetDisplayName(),
 				Attendees:       attendees,
 				GuestsCanModify: true,
-			}).Do()
+			}).ConferenceDataVersion(1).Do()
 			util.PanicOnError(err, "Can't create event")
 			logger.Info("✔ " + session.GetDisplayName())
 		}

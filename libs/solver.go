@@ -3,6 +3,7 @@ package libs
 import (
 	"fmt"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	logger "github.com/transcovo/go-chpr-logger"
 	"matchmaker/util"
 	"os"
@@ -180,6 +181,7 @@ func isSessionCompatible(session *ReviewSession, sessions []*ReviewSession) bool
 	// store the number of sessions to cap it
 	reviewers := session.Reviewers
 	people := reviewers.People
+	minSessionSpacingHours := viper.GetDuration("sessions.minSessionSpacingHours")
 
 	person0 := people[0]
 	person0.isSessionCompatibleSessionCount = 0
@@ -208,7 +210,7 @@ func isSessionCompatible(session *ReviewSession, sessions []*ReviewSession) bool
 		otherPerson0 := otherPeople[0]
 		otherPerson1 := otherPeople[1]
 		if otherPerson0 == person0 || otherPerson0 == person1 || otherPerson1 == person0 || otherPerson1 == person1 {
-			range1 := session.Range.Pad(minSessionSpacing)
+			range1 := session.Range.Pad(minSessionSpacingHours)
 			range2 := otherSession.Range
 			if haveIntersection(range1, range2) {
 				return false
@@ -220,8 +222,8 @@ func isSessionCompatible(session *ReviewSession, sessions []*ReviewSession) bool
 	}
 
 	// check the max reviews per person
-	maxSessionsForPerson0 := defaultMaxSessionsPerWeek
-	maxSessionsForPerson1 := defaultMaxSessionsPerWeek
+	maxSessionsForPerson0 := viper.GetInt("sessions.maxPerPersonPerWeek")
+	maxSessionsForPerson1 := viper.GetInt("sessions.maxPerPersonPerWeek")
 	if person0.MaxSessionsPerWeek != 0 {
 		maxSessionsForPerson0 = person0.MaxSessionsPerWeek
 	}

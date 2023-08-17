@@ -1,6 +1,6 @@
 /.idea/
 /vendor/
-/config.json
+/configs/config.json
 /client_secret.json
 /persons.yml
 /problem.yml
