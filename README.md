@@ -4,7 +4,7 @@ Matchmaker takes care of matching and planning of reviewers and review slots in 
 
 ## Install dependencies
 
-Requires: [Go](https://golang.org/dl/) >= 1.17.x
+Requires: [Go](https://golang.org/dl/) >= 1.22.x
 
     go install
 
@@ -22,6 +22,10 @@ You can now run the binary:
 
     ./matchmaker
 
+# Updating dependencies
+
+    go get -u
+    go mod tidy
 
 ## Setup Google Calendar API Access
 
