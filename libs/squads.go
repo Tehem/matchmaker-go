@@ -51,6 +51,9 @@ func generateSquads(people []*Person, busyTimes []*BusyTime) []*Squad {
 func filterPersons(persons []*Person, wantedIsGoodReviewer bool) []*Person {
 	result := []*Person{}
 	for _, person := range persons {
+		if person.MaxSessionsPerWeek == 0 {
+			continue
+		}
 		if person.IsGoodReviewer == wantedIsGoodReviewer {
 			result = append(result, person)
 		}

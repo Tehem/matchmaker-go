@@ -107,6 +107,9 @@ func loadProblem(weekShift int) *libs.Problem {
 	workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
 	busyTimes := []*libs.BusyTime{}
 	for _, person := range people {
+		if person.MaxSessionsPerWeek == 0 {
+			continue
+		}
 		personLogger := logger.WithField("person", person.Email)
 		personLogger.Info("Loading busy detail")
 		for _, workRange := range workRanges {
