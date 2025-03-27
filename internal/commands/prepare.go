@@ -26,8 +26,7 @@ for each potential reviewer and create an output file 'problem.yml'.`,
 		ctx := cmd.Context()
 
 		// Load configuration
-		cfg, err := config.LoadConfig()
-		if err != nil {
+		if _, err := config.LoadConfig(); err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
