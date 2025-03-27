@@ -2,80 +2,67 @@
 
 Matchmaker takes care of matching and planning of reviewers and review slots in people's calendars.
 
-## Install dependencies
+## Project Structure
 
-Requires: [Go](https://golang.org/dl/) >= 1.22.x
+```
+matchmaker/
+├── cmd/
+│   └── matchmaker/     # Main application entry point
+├── internal/
+│   ├── calendar/       # Google Calendar API integration
+│   ├── commands/       # CLI commands
+│   ├── config/        # Configuration management
+│   └── matching/      # Reviewer matching logic
+├── configs/           # Configuration files
+└── pkg/              # Public packages (if any)
+```
 
-    go install
+## Requirements
 
-## Build the app
+- [Go](https://golang.org/dl/) >= 1.22.x
 
-    go build
+## Installation
 
-## Install the app
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/matchmaker-go.git
+   cd matchmaker-go
+   ```
 
-    go install
+2. Install dependencies:
+   ```bash
+   go mod download
+   ```
 
-## Run the app
+3. Build the application:
+   ```bash
+   go build -o matchmaker ./cmd/matchmaker
+   ```
 
-You can now run the binary:
+4. Install the application:
+   ```bash
+   go install ./cmd/matchmaker
+   ```
 
-    ./matchmaker
+## Configuration
 
-# Updating dependencies
+### Application Configuration
 
-    go get -u
-    go mod tidy
+The application uses a JSON configuration file located at `configs/config.json`. You can create it from the example:
 
-## Setup Google Calendar API Access
+```bash
+cp configs/config.json.example configs/config.json
+```
 
-You need to setup a Google Cloud Platform project with the Google Calendar API enabled.
-To create a project and enable an API, refer to [this documentation](https://developers.google.com/workspace/guides/create-project).
+The configuration includes:
+- Session duration and spacing
+- Maximum sessions per person per week
+- Working hours and timezone
+- Session prefix for calendar events
 
-This simple app queries Google Calendar API as yourself, so you need to
-have the authorization to create events and query availabilities on all the listed people's calendars.
+### People Configuration
 
-You can follow the steps described [here](https://github.com/googleapis/google-api-nodejs-client#oauth2-client) to 
-set up an OAuth2 client for the application.
-
-Copy `client_secret.json.example` into a new `client_secret.json` file and replace values 
-for `client_id`, `client_secret` and `project_id`.
-
-## Get an access token
-
-Once your credentials are set, you need to allow this app to use your
-credentials. Just launch the command :
-
-    matchmaker token
-
-You should get a new browser window opening with a Google consent screen. If not you can 
-open the url indicated in the command line :
-
-    Authorize this app at: https://accounts.google.com/o/oauth2/auth?client_id=...
-
-Grant access to the app by ignoring any security warning about the app not being verified.
-Your token will be stored into a `calendar-api.json.json` file in your `~/.credentials` folder and a query to your
-calendar will be made with it to test it, you should see the output in the console.
-
-If you get an error :
-
-    Response: {
-      "error": "invalid_grant",
-      "error_description": "Bad Request"
-    }
-    exit status 1
-
-
-You need to delete the credential file `~/.credentials/calendar-api.json`:
-
-    rm ~/.credentials/calendar-api.json
-
-Then retry the command to create the token.
-
-## Setup
-
-You need to create/retrieve the `persons.yml` file containing people configuration for review.
-Format example:
+Create a `persons.yml` file with the list of reviewers. Example:
 ```yaml
 - email: john.doe@example.com
   isgoodreviewer: true
@@ -93,37 +80,73 @@ Format example:
   maxsessionsperweek: 1
 - email: obi-wan.kenobi@example.com
 ```
-**isgoodreviewer** [optional] is used to distinguish the experienced reviewers in order to create reviewer pairs 
-that contain at least one experienced reviewer. Default value is false.
-**maxsessionsperweek** [optional] sets a custom max sessions number per week for a reviewer. Default is 3. 
-If set to 0, it also falls back to the default value.
-**skills** [optional] describes the areas of expertise of a reviewer in order to create pairs of people with 
-same competences. If not specified the reviewer can be paired with any other reviewer (no matter the skills)
 
-Copy the provided example file `persons.yml.example` into a new `persons.yml` file and replace values with actual users.
+Configuration options:
+- `isgoodreviewer` [optional]: Marks experienced reviewers for better pairing
+- `maxsessionsperweek` [optional]: Sets custom max sessions per week (default: 3)
+- `skills` [optional]: Areas of expertise for skill-based matching
 
-TEMP / TO REMOVE :
-Adapt the master email in this file : `commands/plan.go:43`
+## Google Calendar Setup
 
-## Preparing
+1. Create a Google Cloud Platform project and enable the Google Calendar API
+2. Create OAuth 2.0 credentials and download them as `client_secret.json`
+3. Get an access token:
+   ```bash
+   matchmaker token
+   ```
+   This will open a browser window for authorization and save the token in `~/.credentials/calendar-api.json`
 
-    matchmaker prepare [--week-shift value [default=0]]
+## Usage
 
-This command will compute work ranges for the target week, and check free slots for each potential
-reviewer and create an output file `problem.yml`.
+### Prepare
 
-By default, the command plans for the upcoming monday, you can provide a `weekShift` value as a parameter, allowing
-to plan for further weeks (1 = the week after upcoming monday, etc.)
+Compute work ranges and check free slots for the target week:
+```bash
+matchmaker prepare [--week-shift value]
+```
+- `--week-shift`: Number of weeks to shift from current week (default: 0)
+- Output: `problem.yml`
 
-## Matching
+### Match
 
-    matchmaker match
+Match reviewers together in review slots:
+```bash
+matchmaker match
+```
+- Input: `problem.yml`
+- Output: `planning.yml`
 
-This command will take input from the `problem.yml` file and match reviewers together in review slots for the target week.
-The output is a `planning.yml` file with reviewers couples and planned slots.
+### Plan
 
-## Planning
+Create review events in reviewers' calendars:
+```bash
+matchmaker plan
+```
+- Input: `planning.yml`
+- Creates calendar events for all matched reviewers
 
-    matchmaker plan
+## Development
 
-This command will take input from the `planning.yml` file and create review events in reviewers' calendar.
+### Updating Dependencies
+
+```bash
+go get -u
+go mod tidy
+```
+
+### Running Tests
+
+```bash
+go test ./...
+```
+
+### Code Style
+
+The project follows standard Go formatting. Format your code before committing:
+```bash
+go fmt ./...
+```
+
+## License
+
+[Your chosen license]
