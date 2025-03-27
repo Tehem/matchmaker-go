@@ -7,7 +7,6 @@ import (
 
 	"matchmaker/internal/calendar"
 	"matchmaker/internal/config"
-	"matchmaker/internal/matching"
 
 	"github.com/spf13/cobra"
 )
@@ -41,7 +40,7 @@ for each potential reviewer and create an output file 'problem.yml'.`,
 		slog.Info("Preparing for week", "week", targetWeek.Format("2006-01-02"))
 
 		// Load people configuration
-		people, err := loadPeople("persons.yml")
+		people, err := config.LoadPeople("persons.yml")
 		if err != nil {
 			return fmt.Errorf("failed to load people configuration: %w", err)
 		}
@@ -57,7 +56,7 @@ for each potential reviewer and create an output file 'problem.yml'.`,
 		}
 
 		// Save problem configuration
-		if err := saveProblem(people, targetWeek); err != nil {
+		if err := config.SaveProblem(people, targetWeek, "problem.yml"); err != nil {
 			return fmt.Errorf("failed to save problem configuration: %w", err)
 		}
 
@@ -80,16 +79,4 @@ func calculateTargetWeek(shift int) time.Time {
 	nextMonday := now.AddDate(0, 0, daysUntilMonday)
 	// Add week shift
 	return nextMonday.AddDate(0, 0, shift*7)
-}
-
-// loadPeople loads the people configuration from YAML
-func loadPeople(filename string) ([]*matching.Person, error) {
-	// TODO: Implement YAML loading
-	return nil, fmt.Errorf("not implemented")
-}
-
-// saveProblem saves the problem configuration to YAML
-func saveProblem(people []*matching.Person, targetWeek time.Time) error {
-	// TODO: Implement YAML saving
-	return fmt.Errorf("not implemented")
 }

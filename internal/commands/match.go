@@ -26,7 +26,7 @@ with reviewers couples and planned slots.`,
 		}
 
 		// Load problem configuration
-		people, err := loadProblem("problem.yml")
+		people, err := config.LoadProblem("problem.yml")
 		if err != nil {
 			return fmt.Errorf("failed to load problem configuration: %w", err)
 		}
@@ -46,7 +46,7 @@ with reviewers couples and planned slots.`,
 		}
 
 		// Save planning
-		if err := savePlanning(matches, cfg.Sessions.SessionPrefix); err != nil {
+		if err := config.SavePlanning(matches, "planning.yml"); err != nil {
 			return fmt.Errorf("failed to save planning: %w", err)
 		}
 
@@ -57,16 +57,4 @@ with reviewers couples and planned slots.`,
 
 func init() {
 	RootCmd.AddCommand(matchCmd)
-}
-
-// loadProblem loads the problem configuration from YAML
-func loadProblem(filename string) ([]*matching.Person, error) {
-	// TODO: Implement YAML loading
-	return nil, fmt.Errorf("not implemented")
-}
-
-// savePlanning saves the planning configuration to YAML
-func savePlanning(matches []matching.Match, sessionPrefix string) error {
-	// TODO: Implement YAML saving
-	return fmt.Errorf("not implemented")
 }
