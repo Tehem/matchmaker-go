@@ -19,8 +19,6 @@ var matchCmd = &cobra.Command{
 together in review slots for the target week. The output is a 'planning.yml' file 
 with reviewers couples and planned slots.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx := cmd.Context()
-
 		// Load configuration
 		cfg, err := config.LoadConfig()
 		if err != nil {
