@@ -9,86 +9,6 @@ import (
 	"google.golang.org/api/option"
 )
 
-// Service represents a Google Calendar service
-type Service struct {
-	service *calendar.Service
-}
-
-// NewService creates a new calendar service
-func NewService(ctx context.Context, credentialsFile string) (*Service, error) {
-	service, err := calendar.NewService(ctx, option.WithCredentialsFile(credentialsFile))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create calendar service: %w", err)
-	}
-
-	return &Service{service: service}, nil
-}
-
-// GetFreeSlots retrieves free slots for a given calendar ID and time range
-func (s *Service) GetFreeSlots(ctx context.Context, calendarID string, start, end time.Time) ([]TimeSlot, error) {
-	events, err := s.service.Events.List(calendarID).
-		TimeMin(start.Format(time.RFC3339)).
-		TimeMax(end.Format(time.RFC3339)).
-		Context(ctx).
-		Do()
-	if err != nil {
-		return nil, fmt.Errorf("failed to list events: %w", err)
-	}
-
-	// Convert events to busy slots
-	busySlots := make([]TimeSlot, 0, len(events.Items))
-	for _, event := range events.Items {
-		startTime, err := time.Parse(time.RFC3339, event.Start.DateTime)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse event start time: %w", err)
-		}
-
-		endTime, err := time.Parse(time.RFC3339, event.End.DateTime)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse event end time: %w", err)
-		}
-
-		busySlots = append(busySlots, TimeSlot{
-			Start: startTime,
-			End:   endTime,
-		})
-	}
-
-	// Calculate free slots
-	return calculateFreeSlots(start, end, busySlots), nil
-}
-
-// CreateEvent creates a new calendar event
-func (s *Service) CreateEvent(ctx context.Context, calendarID string, event *Event) error {
-	calendarEvent := &calendar.Event{
-		Summary: event.Summary,
-		Start: &calendar.EventDateTime{
-			DateTime: event.Start.Format(time.RFC3339),
-		},
-		End: &calendar.EventDateTime{
-			DateTime: event.End.Format(time.RFC3339),
-		},
-		Description: event.Description,
-		Attendees:   make([]*calendar.EventAttendee, len(event.Attendees)),
-	}
-
-	for i, attendee := range event.Attendees {
-		calendarEvent.Attendees[i] = &calendar.EventAttendee{
-			Email: attendee,
-		}
-	}
-
-	_, err := s.service.Events.Insert(calendarID, calendarEvent).
-		SendUpdates("all").
-		Context(ctx).
-		Do()
-	if err != nil {
-		return fmt.Errorf("failed to create event: %w", err)
-	}
-
-	return nil
-}
-
 // TimeSlot represents a time slot
 type TimeSlot struct {
 	Start time.Time
@@ -102,6 +22,91 @@ type Event struct {
 	End         time.Time
 	Description string
 	Attendees   []string
+}
+
+// CalendarService defines the interface for calendar operations
+type CalendarService interface {
+	GetFreeSlots(ctx context.Context, email string, startTime, endTime time.Time, events []*Event) ([]TimeSlot, error)
+	CreateEvent(ctx context.Context, email string, event *Event) error
+}
+
+// Service represents a Google Calendar service
+type Service struct {
+	service *calendar.Service
+}
+
+// calendarServiceFactory is a function that creates a new calendar service
+var calendarServiceFactory = func(ctx context.Context, opts ...option.ClientOption) (*Service, error) {
+	service, err := calendar.NewService(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return &Service{service: service}, nil
+}
+
+// NewCalendarService creates a new calendar service
+func NewCalendarService(ctx context.Context, opts ...option.ClientOption) (*Service, error) {
+	return calendarServiceFactory(ctx, opts...)
+}
+
+// SetCalendarServiceFactory sets the factory function for creating calendar services
+func SetCalendarServiceFactory(factory func(context.Context, ...option.ClientOption) (*Service, error)) {
+	calendarServiceFactory = factory
+}
+
+// GetFreeSlots retrieves free slots for a given calendar ID and time range
+func (s *Service) GetFreeSlots(ctx context.Context, email string, startTime, endTime time.Time, events []*Event) ([]TimeSlot, error) {
+	if endTime.Before(startTime) {
+		return nil, fmt.Errorf("end time %v is before start time %v", endTime, startTime)
+	}
+
+	// Convert calendar events to TimeSlots
+	busySlots := make([]TimeSlot, 0, len(events))
+	for _, event := range events {
+		busySlots = append(busySlots, TimeSlot{
+			Start: event.Start,
+			End:   event.End,
+		})
+	}
+
+	// Get free slots between busy slots
+	freeSlots := calculateFreeSlots(startTime, endTime, busySlots)
+
+	return freeSlots, nil
+}
+
+// CreateEvent creates a new calendar event
+func (s *Service) CreateEvent(ctx context.Context, email string, event *Event) error {
+	calendarEvent, err := s.transformEvent(event)
+	if err != nil {
+		return err
+	}
+	_, err = s.insertEvent(ctx, email, calendarEvent)
+	return err
+}
+
+// transformEvent transforms an Event into a calendar.Event
+func (s *Service) transformEvent(event *Event) (*calendar.Event, error) {
+	calendarEvent := &calendar.Event{
+		Summary:     event.Summary,
+		Start:       &calendar.EventDateTime{DateTime: event.Start.Format(time.RFC3339)},
+		End:         &calendar.EventDateTime{DateTime: event.End.Format(time.RFC3339)},
+		Description: event.Description,
+		Attendees:   make([]*calendar.EventAttendee, len(event.Attendees)),
+	}
+
+	for i, attendee := range event.Attendees {
+		calendarEvent.Attendees[i] = &calendar.EventAttendee{
+			Email: attendee,
+		}
+	}
+
+	return calendarEvent, nil
+}
+
+// insertEvent inserts a calendar event into the calendar
+func (s *Service) insertEvent(ctx context.Context, email string, event *calendar.Event) (*calendar.Event, error) {
+	return s.service.Events.Insert(email, event).Context(ctx).Do()
 }
 
 // calculateFreeSlots calculates free time slots between busy slots
