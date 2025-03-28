@@ -3,7 +3,6 @@ package commands
 import (
 	"fmt"
 	"log/slog"
-	"time"
 
 	"matchmaker/internal/config"
 	"matchmaker/internal/matching"
@@ -20,7 +19,7 @@ together in review slots for the target week. The output is a 'planning.yml' fil
 with reviewers couples and planned slots.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Load configuration
-		cfg, err := config.LoadConfig()
+		cfg, err := config.LoadConfig("configs/config.yml")
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
@@ -33,8 +32,8 @@ with reviewers couples and planned slots.`,
 
 		// Create matcher
 		matcherConfig := &matching.Config{
-			SessionDuration:     time.Duration(cfg.Sessions.DurationMinutes) * time.Minute,
-			MinSessionSpacing:   time.Duration(cfg.Sessions.MinSpacingHours) * time.Hour,
+			SessionDuration:     cfg.Sessions.Duration,
+			MinSessionSpacing:   cfg.Sessions.MinSpacing,
 			MaxPerPersonPerWeek: cfg.Sessions.MaxPerPersonPerWeek,
 		}
 		matcher := matching.NewMatcher(people, matcherConfig)

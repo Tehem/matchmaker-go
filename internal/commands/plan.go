@@ -6,7 +6,6 @@ import (
 
 	"matchmaker/internal/calendar"
 	"matchmaker/internal/config"
-	"matchmaker/internal/matching"
 
 	"github.com/spf13/cobra"
 )
@@ -21,19 +20,13 @@ events in reviewers' calendars.`,
 		ctx := cmd.Context()
 
 		// Load configuration
-		cfg, err := config.LoadConfig()
+		cfg, err := config.LoadConfig("configs/config.yml")
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		// Initialize calendar service
-		calendarService, err := calendar.NewService(ctx, "client_secret.json")
-		if err != nil {
-			return fmt.Errorf("failed to create calendar service: %w", err)
-		}
-
 		// Load planning configuration
-		matches, err := loadPlanning("planning.yml")
+		matches, err := config.LoadPlanning("planning.yml")
 		if err != nil {
 			return fmt.Errorf("failed to load planning configuration: %w", err)
 		}
@@ -66,10 +59,4 @@ events in reviewers' calendars.`,
 
 func init() {
 	RootCmd.AddCommand(planCmd)
-}
-
-// loadPlanning loads the planning configuration from YAML
-func loadPlanning(filename string) ([]matching.Match, error) {
-	// TODO: Implement YAML loading
-	return nil, fmt.Errorf("not implemented")
 }

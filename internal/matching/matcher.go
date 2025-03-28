@@ -2,39 +2,16 @@ package matching
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"matchmaker/internal/calendar"
 )
 
-// Person represents a reviewer
-type Person struct {
-	Email              string   `yaml:"email"`
-	IsGoodReviewer     bool     `yaml:"isgoodreviewer"`
-	MaxSessionsPerWeek int      `yaml:"maxsessionsperweek,omitempty"`
-	Skills             []string `yaml:"skills,omitempty"`
-	FreeSlots          []calendar.TimeSlot
-}
-
-// Match represents a matched pair of reviewers
-type Match struct {
-	Reviewer1    *Person
-	Reviewer2    *Person
-	TimeSlot     calendar.TimeSlot
-	CommonSkills []string
-}
-
 // Matcher handles the matching logic
 type Matcher struct {
 	people []*Person
 	config *Config
-}
-
-// Config represents the matching configuration
-type Config struct {
-	SessionDuration     time.Duration
-	MinSessionSpacing   time.Duration
-	MaxPerPersonPerWeek int
 }
 
 // NewMatcher creates a new matcher instance
@@ -51,36 +28,65 @@ func (m *Matcher) FindMatches() ([]Match, error) {
 		return nil, fmt.Errorf("need at least 2 people to create matches")
 	}
 
+	// Sort people by MaxSessionsPerWeek (higher first)
+	sortedPeople := make([]*Person, len(m.people))
+	copy(sortedPeople, m.people)
+	sort.Slice(sortedPeople, func(i, j int) bool {
+		return sortedPeople[i].MaxSessionsPerWeek > sortedPeople[j].MaxSessionsPerWeek
+	})
+
 	var matches []Match
 	usedSlots := make(map[string][]calendar.TimeSlot)
+	matched := make(map[string]bool) // Track who has been matched
 
-	for i, person1 := range m.people {
-		if !canReview(person1, usedSlots) {
+	for i, person1 := range sortedPeople {
+		if matched[person1.Email] || !canReview(person1, usedSlots) {
 			continue
 		}
 
-		for j := i + 1; j < len(m.people); j++ {
-			person2 := m.people[j]
-			if !canReview(person2, usedSlots) {
+		for j := i + 1; j < len(sortedPeople); j++ {
+			person2 := sortedPeople[j]
+			if matched[person2.Email] || !canReview(person2, usedSlots) {
 				continue
 			}
 
 			commonSlots := findCommonSlots(person1.FreeSlots, person2.FreeSlots)
 			commonSkills := findCommonSkills(person1.Skills, person2.Skills)
 
+			// Skip if no common skills
+			if len(commonSkills) == 0 {
+				continue
+			}
+
+			// Try to find a valid slot
 			for _, slot := range commonSlots {
 				if isValidSlot(slot, m.config.SessionDuration) {
 					match := Match{
-						Reviewer1:    person1,
-						Reviewer2:    person2,
 						TimeSlot:     slot,
 						CommonSkills: commonSkills,
 					}
+
+					// Sort reviewers alphabetically by email
+					if person1.Email < person2.Email {
+						match.Reviewer1 = person1
+						match.Reviewer2 = person2
+					} else {
+						match.Reviewer1 = person2
+						match.Reviewer2 = person1
+					}
+
 					matches = append(matches, match)
 					updateUsedSlots(usedSlots, person1.Email, slot)
 					updateUsedSlots(usedSlots, person2.Email, slot)
+					matched[person1.Email] = true
+					matched[person2.Email] = true
 					break
 				}
+			}
+
+			// If we matched person1, move to the next one
+			if matched[person1.Email] {
+				break
 			}
 		}
 	}
