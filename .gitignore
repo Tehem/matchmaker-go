@@ -16,7 +16,7 @@ matchmaker
 Thumbs.db
 
 /vendor/
-/configs/config.json
+/configs/config.yml
 /client_secret.json
 /persons.yml
 /problem.yml
