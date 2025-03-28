@@ -24,7 +24,7 @@ func init() {
 func initConfig() error {
 	viper.AddConfigPath("./configs")
 	viper.SetConfigName("config")
-	viper.SetConfigType("json")
+	viper.SetConfigType("yaml")
 
 	// Default sessions config
 	viper.SetDefault("sessions.sessionDurationMinutes", 60)
@@ -50,7 +50,7 @@ func initConfig() error {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			slog.Warn("Config file not found", "error", err)
-			slog.Info("Please initialize it with `cp configs/config.json.example configs/config.json` and adjust values accordingly")
+			slog.Info("Please initialize it with `cp configs/config.yml.example configs/config.yml` and adjust values accordingly")
 		} else {
 			return fmt.Errorf("fatal error reading config file: %w", err)
 		}

@@ -48,10 +48,10 @@ matchmaker/
 
 ### Application Configuration
 
-The application uses a JSON configuration file located at `configs/config.json`. You can create it from the example:
+The application uses a YAML configuration file located at `configs/config.yml`. You can create it from the example:
 
 ```bash
-cp configs/config.json.example configs/config.json
+cp configs/config.yml.example configs/config.yml
 ```
 
 The configuration includes:
