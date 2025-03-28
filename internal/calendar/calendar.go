@@ -17,11 +17,12 @@ type TimeSlot struct {
 
 // Event represents a calendar event
 type Event struct {
-	Summary     string
-	Start       time.Time
-	End         time.Time
-	Description string
-	Attendees   []string
+	Summary        string
+	Start          time.Time
+	End            time.Time
+	Description    string
+	Attendees      []string
+	OrganizerEmail string
 }
 
 // CalendarService defines the interface for calendar operations
@@ -81,6 +82,28 @@ func (s *Service) CreateEvent(ctx context.Context, email string, event *Event) e
 	if err != nil {
 		return err
 	}
+
+	// If organizer email is set, add it as organizer and optional attendee
+	if event.OrganizerEmail != "" {
+		calendarEvent.Organizer = &calendar.EventOrganizer{
+			Email: event.OrganizerEmail,
+		}
+		// Add organizer as optional attendee if not already in attendees list
+		organizerExists := false
+		for _, attendee := range calendarEvent.Attendees {
+			if attendee.Email == event.OrganizerEmail {
+				organizerExists = true
+				break
+			}
+		}
+		if !organizerExists {
+			calendarEvent.Attendees = append(calendarEvent.Attendees, &calendar.EventAttendee{
+				Email:    event.OrganizerEmail,
+				Optional: true,
+			})
+		}
+	}
+
 	_, err = s.insertEvent(ctx, email, calendarEvent)
 	return err
 }

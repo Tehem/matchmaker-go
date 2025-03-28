@@ -34,11 +34,12 @@ events in reviewers' calendars.`,
 		// Create events
 		for _, match := range matches {
 			event := &calendar.Event{
-				Summary:     fmt.Sprintf("%s%s & %s", cfg.Sessions.SessionPrefix, match.Reviewer1.Email, match.Reviewer2.Email),
-				Start:       match.TimeSlot.Start,
-				End:         match.TimeSlot.End,
-				Description: fmt.Sprintf("Code review session\nCommon skills: %v", match.CommonSkills),
-				Attendees:   []string{match.Reviewer1.Email, match.Reviewer2.Email},
+				Summary:        fmt.Sprintf("%s%s & %s", cfg.Sessions.SessionPrefix, match.Reviewer1.Email, match.Reviewer2.Email),
+				Start:          match.TimeSlot.Start,
+				End:            match.TimeSlot.End,
+				Description:    fmt.Sprintf("Code review session\nCommon skills: %v", match.CommonSkills),
+				Attendees:      []string{match.Reviewer1.Email, match.Reviewer2.Email},
+				OrganizerEmail: cfg.OrganizerEmail,
 			}
 
 			if err := calendarService.CreateEvent(ctx, match.Reviewer1.Email, event); err != nil {

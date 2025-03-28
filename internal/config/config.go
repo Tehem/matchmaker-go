@@ -34,8 +34,9 @@ func SetFileSystem(newFS FileSystem) {
 
 // Config represents the application configuration
 type Config struct {
-	Sessions SessionConfig  `yaml:"sessions"`
-	Calendar CalendarConfig `yaml:"calendar"`
+	OrganizerEmail string         `yaml:"organizer_email"`
+	Sessions       SessionConfig  `yaml:"sessions"`
+	Calendar       CalendarConfig `yaml:"calendar"`
 }
 
 // SessionConfig represents the configuration for review sessions
