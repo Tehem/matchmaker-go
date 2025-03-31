@@ -15,25 +15,31 @@ func TestLoadConfig(t *testing.T) {
 	SetFileSystem(fs)
 	defer SetFileSystem(DefaultFileSystem{})
 
-	fs.WriteFile("config.yml", []byte(`sessions:
-  duration: 60m
-  min_spacing: 2h
-  max_per_person_per_week: 3
-  session_prefix: "Review Session"
-calendar:
-  work_hours:
-    start: "09:00"
-    end: "17:00"
-  timezone: "UTC"
-  working_days:
-    - "Monday"
-    - "Tuesday"
-    - "Wednesday"
-    - "Thursday"
-    - "Friday"`), 0644)
+	fs.WriteFile("config.json", []byte(`{
+		"sessions": {
+			"duration": "60m",
+			"min_spacing": "2h",
+			"max_per_person_per_week": 3,
+			"session_prefix": "Review Session"
+		},
+		"calendar": {
+			"work_hours": {
+				"start": "09:00",
+				"end": "17:00"
+			},
+			"timezone": "UTC",
+			"working_days": [
+				"Monday",
+				"Tuesday",
+				"Wednesday",
+				"Thursday",
+				"Friday"
+			]
+		}
+	}`), 0644)
 
 	// Test loading
-	cfg, err := LoadConfig("config.yml")
+	cfg, err := LoadConfig("config.json")
 	require.NoError(t, err)
 	assert.NotNil(t, cfg)
 
@@ -55,22 +61,24 @@ func TestLoadConfigInvalidFile(t *testing.T) {
 	SetFileSystem(fs)
 	defer SetFileSystem(DefaultFileSystem{})
 
-	_, err := LoadConfig("nonexistent.yml")
+	_, err := LoadConfig("nonexistent.json")
 	assert.Error(t, err)
 }
 
-func TestLoadConfigInvalidYAML(t *testing.T) {
+func TestLoadConfigInvalidJSON(t *testing.T) {
 	fs := testutil.NewMockFileSystem()
 	SetFileSystem(fs)
 	defer SetFileSystem(DefaultFileSystem{})
 
-	fs.WriteFile("config.yml", []byte(`sessions:
-  duration: invalid
-  min_spacing: invalid
-  max_per_person_per_week: invalid`), 0644)
+	fs.WriteFile("config.json", []byte(`{
+		"sessions": {
+			"duration": "invalid",
+			"min_spacing": "invalid"
+		}
+	}`), 0644)
 
-	// Test loading invalid YAML
-	_, err := LoadConfig("config.yml")
+	// Test loading invalid JSON
+	_, err := LoadConfig("config.json")
 	assert.Error(t, err)
 }
 
@@ -79,13 +87,17 @@ func TestLoadConfigMissingFields(t *testing.T) {
 	SetFileSystem(fs)
 	defer SetFileSystem(DefaultFileSystem{})
 
-	fs.WriteFile("config.yml", []byte(`sessions:
-  duration: 60m
-calendar:
-  timezone: "UTC"`), 0644)
+	fs.WriteFile("config.json", []byte(`{
+		"sessions": {
+			"duration": "60m"
+		},
+		"calendar": {
+			"timezone": "UTC"
+		}
+	}`), 0644)
 
 	// Test loading with missing fields
-	cfg, err := LoadConfig("config.yml")
+	cfg, err := LoadConfig("config.json")
 	require.NoError(t, err)
 	assert.NotNil(t, cfg)
 
@@ -105,16 +117,21 @@ func TestLoadConfigInvalidTimeFormat(t *testing.T) {
 	SetFileSystem(fs)
 	defer SetFileSystem(DefaultFileSystem{})
 
-	fs.WriteFile("config.yml", []byte(`sessions:
-  duration: 60m
-calendar:
-  work_hours:
-    start: "25:00"
-    end: "26:00"
-  timezone: "UTC"`), 0644)
+	fs.WriteFile("config.json", []byte(`{
+		"sessions": {
+			"duration": "60m"
+		},
+		"calendar": {
+			"work_hours": {
+				"start": "25:00",
+				"end": "26:00"
+			},
+			"timezone": "UTC"
+		}
+	}`), 0644)
 
 	// Test loading with invalid time format
-	_, err := LoadConfig("config.yml")
+	_, err := LoadConfig("config.json")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid start time format")
 }

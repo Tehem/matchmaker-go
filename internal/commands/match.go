@@ -19,7 +19,7 @@ together in review slots for the target week. The output is a 'planning.yml' fil
 with reviewers couples and planned slots.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Load configuration
-		cfg, err := config.LoadConfig("configs/config.yml")
+		cfg, err := config.LoadConfig("configs/config.json")
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}

@@ -1,11 +1,10 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
 // FileSystem defines the interface for file operations
@@ -34,33 +33,33 @@ func SetFileSystem(newFS FileSystem) {
 
 // Config represents the application configuration
 type Config struct {
-	OrganizerEmail string         `yaml:"organizer_email"`
-	Sessions       SessionConfig  `yaml:"sessions"`
-	Calendar       CalendarConfig `yaml:"calendar"`
+	OrganizerEmail string         `json:"organizer_email"`
+	Sessions       SessionConfig  `json:"sessions"`
+	Calendar       CalendarConfig `json:"calendar"`
 }
 
 // SessionConfig represents the configuration for review sessions
 type SessionConfig struct {
-	Duration            time.Duration `yaml:"duration"`
-	MinSpacing          time.Duration `yaml:"min_spacing"`
-	MaxPerPersonPerWeek int           `yaml:"max_per_person_per_week"`
-	SessionPrefix       string        `yaml:"session_prefix"`
+	Duration            time.Duration `json:"duration"`
+	MinSpacing          time.Duration `json:"min_spacing"`
+	MaxPerPersonPerWeek int           `json:"max_per_person_per_week"`
+	SessionPrefix       string        `json:"session_prefix"`
 }
 
 // CalendarConfig represents the calendar configuration
 type CalendarConfig struct {
-	WorkHours   WorkHoursConfig `yaml:"work_hours"`
-	Timezone    string          `yaml:"timezone"`
-	WorkingDays []string        `yaml:"working_days"`
+	WorkHours   WorkHoursConfig `json:"work_hours"`
+	Timezone    string          `json:"timezone"`
+	WorkingDays []string        `json:"working_days"`
 }
 
 // WorkHoursConfig represents the working hours configuration
 type WorkHoursConfig struct {
-	Start string `yaml:"start"`
-	End   string `yaml:"end"`
+	Start string `json:"start"`
+	End   string `json:"end"`
 }
 
-// LoadConfig loads the configuration from a YAML file
+// LoadConfig loads the configuration from a JSON file
 func LoadConfig(configPath string) (*Config, error) {
 	data, err := fs.ReadFile(configPath)
 	if err != nil {
@@ -68,7 +67,7 @@ func LoadConfig(configPath string) (*Config, error) {
 	}
 
 	var cfg Config
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := json.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)
 	}
 

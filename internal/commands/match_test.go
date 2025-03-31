@@ -51,26 +51,32 @@ people:
       - start: "2024-03-25T10:00:00Z"
         end: "2024-03-25T11:00:00Z"`
 
-	configContent := `sessions:
-  duration: 60m
-  min_spacing: 2h
-  max_per_person_per_week: 3
-  session_prefix: "Review Session"
-calendar:
-  work_hours:
-    start: "09:00"
-    end: "17:00"
-  timezone: "UTC"
-  working_days:
-    - "Monday"
-    - "Tuesday"
-    - "Wednesday"
-    - "Thursday"
-    - "Friday"`
+	configContent := `{
+		"sessions": {
+			"duration": "60m",
+			"min_spacing": "2h",
+			"max_per_person_per_week": 3,
+			"session_prefix": "Review Session"
+		},
+		"calendar": {
+			"work_hours": {
+				"start": "09:00",
+				"end": "17:00"
+			},
+			"timezone": "UTC",
+			"working_days": [
+				"Monday",
+				"Tuesday",
+				"Wednesday",
+				"Thursday",
+				"Friday"
+			]
+		}
+	}`
 
 	// Write test files
 	fs.WriteFile("problem.yml", []byte(problemContent), 0644)
-	fs.WriteFile("configs/config.yml", []byte(configContent), 0644)
+	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -132,11 +138,14 @@ func TestMatchCommandInvalidConfig(t *testing.T) {
 	defer config.SetFileSystem(config.DefaultFileSystem{})
 
 	// Create invalid config
-	configContent := `sessions:
-  duration: invalid
-  min_spacing: invalid`
+	configContent := `{
+		"sessions": {
+			"duration": "invalid",
+			"min_spacing": "invalid"
+		}
+	}`
 
-	fs.WriteFile("configs/config.yml", []byte(configContent), 0644)
+	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -217,26 +226,32 @@ people:
       - start: "2024-03-25T10:00:00Z"
         end: "2024-03-25T11:00:00Z"`
 
-	configContent := `sessions:
-  duration: 60m
-  min_spacing: 2h
-  max_per_person_per_week: 3
-  session_prefix: "Review Session"
-calendar:
-  work_hours:
-    start: "09:00"
-    end: "17:00"
-  timezone: "UTC"
-  working_days:
-    - "Monday"
-    - "Tuesday"
-    - "Wednesday"
-    - "Thursday"
-    - "Friday"`
+	configContent := `{
+		"sessions": {
+			"duration": "60m",
+			"min_spacing": "2h",
+			"max_per_person_per_week": 3,
+			"session_prefix": "Review Session"
+		},
+		"calendar": {
+			"work_hours": {
+				"start": "09:00",
+				"end": "17:00"
+			},
+			"timezone": "UTC",
+			"working_days": [
+				"Monday",
+				"Tuesday",
+				"Wednesday",
+				"Thursday",
+				"Friday"
+			]
+		}
+	}`
 
 	// Write test files
 	fs.WriteFile("problem.yml", []byte(problemContent), 0644)
-	fs.WriteFile("configs/config.yml", []byte(configContent), 0644)
+	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()

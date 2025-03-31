@@ -20,7 +20,7 @@ events in reviewers' calendars.`,
 		ctx := cmd.Context()
 
 		// Load configuration
-		cfg, err := config.LoadConfig("configs/config.yml")
+		cfg, err := config.LoadConfig("configs/config.json")
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}

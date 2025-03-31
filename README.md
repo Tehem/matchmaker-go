@@ -54,6 +54,32 @@ The application uses a JSON configuration file located at `configs/config.json`.
 cp configs/config.json.example configs/config.json
 ```
 
+Example configuration:
+```json
+{
+  "sessions": {
+    "duration": "60m",
+    "min_spacing": "2h",
+    "max_per_person_per_week": 3,
+    "session_prefix": "Review Session"
+  },
+  "calendar": {
+    "work_hours": {
+      "start": "09:00",
+      "end": "17:00"
+    },
+    "timezone": "UTC",
+    "working_days": [
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday"
+    ]
+  }
+}
+```
+
 The configuration includes:
 - Session duration and spacing
 - Maximum sessions per person per week
