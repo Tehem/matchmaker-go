@@ -5,19 +5,22 @@ import (
 	"time"
 
 	"matchmaker/internal/calendar"
+	"matchmaker/internal/fs"
 	"matchmaker/internal/matching"
-	"matchmaker/internal/testutil"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestLoadPeople(t *testing.T) {
-	fs := testutil.NewMockFileSystem()
-	SetFileSystem(fs)
-	defer SetFileSystem(DefaultFileSystem{})
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
-	fs.WriteFile("persons.yml", []byte(`- email: john.doe@example.com
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
+
+	mockFS.WriteFile("persons.yml", []byte(`- email: john.doe@example.com
   isgoodreviewer: true
   skills:
     - frontend
@@ -47,9 +50,12 @@ func TestLoadPeople(t *testing.T) {
 }
 
 func TestProblemYAML(t *testing.T) {
-	fs := testutil.NewMockFileSystem()
-	SetFileSystem(fs)
-	defer SetFileSystem(DefaultFileSystem{})
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
+
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Create test data
 	people := []*matching.Person{
@@ -77,9 +83,12 @@ func TestProblemYAML(t *testing.T) {
 }
 
 func TestPlanningYAML(t *testing.T) {
-	fs := testutil.NewMockFileSystem()
-	SetFileSystem(fs)
-	defer SetFileSystem(DefaultFileSystem{})
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
+
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Create test data
 	matches := []matching.Match{
@@ -120,11 +129,14 @@ func TestPlanningYAML(t *testing.T) {
 }
 
 func TestInvalidYAML(t *testing.T) {
-	fs := testutil.NewMockFileSystem()
-	SetFileSystem(fs)
-	defer SetFileSystem(DefaultFileSystem{})
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
-	fs.WriteFile("invalid.yml", []byte(`invalid: yaml: content: - email: john.doe@example.com`), 0644)
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
+
+	mockFS.WriteFile("invalid.yml", []byte(`invalid: yaml: content: - email: john.doe@example.com`), 0644)
 
 	// Test loading invalid YAML
 	_, err := LoadPeople("invalid.yml")

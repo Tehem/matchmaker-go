@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"matchmaker/internal/config"
-	"matchmaker/internal/testutil"
+	"matchmaker/internal/calendar"
+	"matchmaker/internal/fs"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,16 +25,18 @@ func init() {
 
 func TestPrepareCommand(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Set up mock calendar service
-	calendarService = &testutil.MockCalendarService{}
+	calendarService = &calendar.MockCalendarService{}
 	defer func() { calendarService = nil }()
+
+	// Set up test configuration
+	SetupTestConfig()
 
 	// Create test data
 	personsContent := `- email: john.doe@example.com
@@ -46,32 +49,8 @@ func TestPrepareCommand(t *testing.T) {
   skills:
     - frontend`
 
-	configContent := `{
-		"sessions": {
-			"duration": "60m",
-			"min_spacing": "2h",
-			"max_per_person_per_week": 3,
-			"session_prefix": "Review Session"
-		},
-		"calendar": {
-			"work_hours": {
-				"start": "09:00",
-				"end": "17:00"
-			},
-			"timezone": "UTC",
-			"working_days": [
-				"Monday",
-				"Tuesday",
-				"Wednesday",
-				"Thursday",
-				"Friday"
-			]
-		}
-	}`
-
 	// Write test files
-	fs.WriteFile("persons.yml", []byte(personsContent), 0644)
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	mockFS.WriteFile("persons.yml", []byte(personsContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -85,7 +64,7 @@ func TestPrepareCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// Check output file exists and verify content
-	output, err := fs.ReadFile("problem.yml")
+	output, err := mockFS.ReadFile("problem.yml")
 	require.NoError(t, err)
 
 	// Debug print
@@ -94,26 +73,20 @@ func TestPrepareCommand(t *testing.T) {
 
 func TestPrepareCommandInvalidConfig(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Set up mock calendar service
-	calendarService = &testutil.MockCalendarService{}
+	calendarService = &calendar.MockCalendarService{}
 	defer func() { calendarService = nil }()
 
-	// Create invalid config
-	configContent := `{
-		"sessions": {
-			"duration": "invalid",
-			"min_spacing": "invalid"
-		}
-	}`
-
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	// Set up invalid configuration
+	viper.Reset()
+	viper.Set("sessions.duration", "invalid")
+	viper.Set("sessions.min_spacing", "invalid")
 
 	// Set up command with context
 	ctx := context.Background()
@@ -129,42 +102,32 @@ func TestPrepareCommandInvalidConfig(t *testing.T) {
 
 func TestPrepareCommandWithWeekShift(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Set up mock calendar service
-	calendarService = &testutil.MockCalendarService{}
+	calendarService = &calendar.MockCalendarService{}
 	defer func() { calendarService = nil }()
 
-	// Create test data
-	var configContent = `{
-		"sessions": {
-			"duration": "60m",
-			"min_spacing": "2h",
-			"max_per_person_per_week": 3,
-			"session_prefix": "Review Session"
-		},
-		"calendar": {
-			"work_hours": {
-				"start": "09:00",
-				"end": "17:00"
-			},
-			"timezone": "UTC",
-			"working_days": [
-				"Monday",
-				"Tuesday",
-				"Wednesday",
-				"Thursday",
-				"Friday"
-			]
-		}
-	}`
+	// Set up test configuration
+	SetupTestConfig()
 
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	// Create test data
+	personsContent := `- email: john.doe@example.com
+  isgoodreviewer: true
+  skills:
+    - frontend
+    - backend
+- email: jane.doe@example.com
+  isgoodreviewer: false
+  skills:
+    - frontend`
+
+	// Write test files
+	mockFS.WriteFile("persons.yml", []byte(personsContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -176,6 +139,13 @@ func TestPrepareCommandWithWeekShift(t *testing.T) {
 	// Run command
 	err := RootCmd.Execute()
 	require.NoError(t, err)
+
+	// Check output file exists and verify content
+	output, err := mockFS.ReadFile("problem.yml")
+	require.NoError(t, err)
+
+	// Debug print
+	t.Logf("Actual output:\n%s", string(output))
 }
 
 func TestCalculateTargetWeek(t *testing.T) {

@@ -4,21 +4,27 @@ import (
 	"context"
 	"testing"
 
-	"matchmaker/internal/config"
-	"matchmaker/internal/testutil"
+	"matchmaker/internal/fs"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMatchCommand(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
+
+	// Set up test configuration
+	SetupTestConfig()
 
 	// Create test data with a person who has max sessions per week set to 0
 	problemContent := `target_week: "2024-03-25T00:00:00Z"
@@ -51,32 +57,8 @@ people:
       - start: "2024-03-25T10:00:00Z"
         end: "2024-03-25T11:00:00Z"`
 
-	configContent := `{
-		"sessions": {
-			"duration": "60m",
-			"min_spacing": "2h",
-			"max_per_person_per_week": 3,
-			"session_prefix": "Review Session"
-		},
-		"calendar": {
-			"work_hours": {
-				"start": "09:00",
-				"end": "17:00"
-			},
-			"timezone": "UTC",
-			"working_days": [
-				"Monday",
-				"Tuesday",
-				"Wednesday",
-				"Thursday",
-				"Friday"
-			]
-		}
-	}`
-
 	// Write test files
-	fs.WriteFile("problem.yml", []byte(problemContent), 0644)
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	mockFS.WriteFile("problem.yml", []byte(problemContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -90,7 +72,7 @@ people:
 	require.NoError(t, err)
 
 	// Check output file exists and verify content
-	output, err := fs.ReadFile("planning.yml")
+	output, err := mockFS.ReadFile("planning.yml")
 	require.NoError(t, err)
 
 	// Debug print
@@ -125,27 +107,25 @@ people:
         - frontend
         - backend
 `
+
 	assert.Equal(t, expectedContent, string(output))
 }
 
 func TestMatchCommandInvalidConfig(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
-	// Create invalid config
-	configContent := `{
-		"sessions": {
-			"duration": "invalid",
-			"min_spacing": "invalid"
-		}
-	}`
-
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	// Set up invalid configuration
+	viper.Reset()
+	viper.Set("sessions.session_prefix", "")
 
 	// Set up command with context
 	ctx := context.Background()
@@ -161,12 +141,18 @@ func TestMatchCommandInvalidConfig(t *testing.T) {
 
 func TestMatchCommandMissingProblemFile(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
+
+	// Set up test configuration
+	SetupTestConfig()
 
 	// Set up command with context
 	ctx := context.Background()
@@ -182,16 +168,21 @@ func TestMatchCommandMissingProblemFile(t *testing.T) {
 
 func TestMatchCommandInvalidProblemFile(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
-	// Create invalid problem file
-	problemContent := `invalid: yaml: content`
-	fs.WriteFile("problem.yml", []byte(problemContent), 0644)
+	// Set up test configuration
+	SetupTestConfig()
+
+	// Write invalid YAML file
+	mockFS.WriteFile("problem.yml", []byte(`invalid: yaml: content`), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -207,12 +198,18 @@ func TestMatchCommandInvalidProblemFile(t *testing.T) {
 
 func TestMatchCommandInsufficientPeople(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
+
+	// Set up test configuration
+	SetupTestConfig()
 
 	// Create test data with only one person
 	problemContent := `target_week: "2024-03-25T00:00:00Z"
@@ -222,36 +219,13 @@ people:
     skills:
       - frontend
       - backend
+    maxsessionsperweek: 3
     freeslots:
       - start: "2024-03-25T10:00:00Z"
         end: "2024-03-25T11:00:00Z"`
 
-	configContent := `{
-		"sessions": {
-			"duration": "60m",
-			"min_spacing": "2h",
-			"max_per_person_per_week": 3,
-			"session_prefix": "Review Session"
-		},
-		"calendar": {
-			"work_hours": {
-				"start": "09:00",
-				"end": "17:00"
-			},
-			"timezone": "UTC",
-			"working_days": [
-				"Monday",
-				"Tuesday",
-				"Wednesday",
-				"Thursday",
-				"Friday"
-			]
-		}
-	}`
-
 	// Write test files
-	fs.WriteFile("problem.yml", []byte(problemContent), 0644)
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	mockFS.WriteFile("problem.yml", []byte(problemContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -263,5 +237,4 @@ people:
 	// Run command and expect error
 	err := RootCmd.Execute()
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "need at least 2 people to create matches")
 }

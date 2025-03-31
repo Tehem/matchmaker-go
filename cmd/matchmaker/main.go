@@ -27,21 +27,17 @@ func initConfig() error {
 	viper.SetConfigType("json")
 
 	// Default sessions config
-	viper.SetDefault("sessions.sessionDurationMinutes", 60)
-	viper.SetDefault("sessions.minSessionSpacingHours", 8)
+	viper.SetDefault("sessions.duration", "60m")
+	viper.SetDefault("sessions.minSpacing", "8h")
 	viper.SetDefault("sessions.maxPerPersonPerWeek", 2)
 	viper.SetDefault("sessions.sessionPrefix", "Pairing ")
 
 	// Default working hours
 	viper.SetDefault("workingHours.timezone", "Europe/Paris")
-	viper.SetDefault("workingHours.morning.start.hour", 10)
-	viper.SetDefault("workingHours.morning.start.minute", 0)
-	viper.SetDefault("workingHours.morning.end.hour", 12)
-	viper.SetDefault("workingHours.morning.end.minute", 0)
-	viper.SetDefault("workingHours.afternoon.start.hour", 14)
-	viper.SetDefault("workingHours.afternoon.start.minute", 0)
-	viper.SetDefault("workingHours.afternoon.end.hour", 18)
-	viper.SetDefault("workingHours.afternoon.end.minute", 0)
+	viper.SetDefault("workingHours.morning.start", "10:00")
+	viper.SetDefault("workingHours.morning.end", "12:00")
+	viper.SetDefault("workingHours.afternoon.start", "14:00")
+	viper.SetDefault("workingHours.afternoon.end", "18:00")
 
 	// Read environment variables
 	viper.AutomaticEnv()

@@ -3,30 +3,18 @@
   "sessions": {
     "maxPerPersonPerWeek": 2,
     "sessionPrefix": "Pairing ",
-    "sessionDurationMinutes": 60,
-    "minSessionSpacingHours": 8
+    "duration": "60m",
+    "minSpacing": "8h"
   },
   "workingHours": {
     "timezone": "Europe/Paris",
     "morning": {
-      "start": {
-        "hour": 10,
-        "minute": 0
-      },
-      "end": {
-        "hour": 12,
-        "minute": 0
-      }
+      "start": "10:00",
+      "end": "12:00"
     },
     "afternoon": {
-      "start": {
-        "hour": 14,
-        "minute": 0
-      },
-      "end": {
-        "hour": 18,
-        "minute": 0
-      }
+      "start": "14:00",
+      "end": "18:00"
     }
   }
 }

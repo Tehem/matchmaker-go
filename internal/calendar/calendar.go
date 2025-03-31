@@ -1,162 +1,87 @@
 package calendar
 
 import (
-	"context"
 	"fmt"
 	"time"
 
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
+	"github.com/spf13/viper"
 )
 
-// TimeSlot represents a time slot
-type TimeSlot struct {
-	Start time.Time
-	End   time.Time
-}
-
-// Event represents a calendar event
-type Event struct {
-	Summary        string
-	Start          time.Time
-	End            time.Time
-	Description    string
-	Attendees      []string
-	OrganizerEmail string
-}
-
-// CalendarService defines the interface for calendar operations
-type CalendarService interface {
-	GetFreeSlots(ctx context.Context, email string, startTime, endTime time.Time, events []*Event) ([]TimeSlot, error)
-	CreateEvent(ctx context.Context, email string, event *Event) error
-}
-
-// Service represents a Google Calendar service
-type Service struct {
-	service *calendar.Service
-}
-
-// calendarServiceFactory is a function that creates a new calendar service
-var calendarServiceFactory = func(ctx context.Context, opts ...option.ClientOption) (*Service, error) {
-	service, err := calendar.NewService(ctx, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return &Service{service: service}, nil
-}
-
-// NewCalendarService creates a new calendar service
-func NewCalendarService(ctx context.Context, opts ...option.ClientOption) (*Service, error) {
-	return calendarServiceFactory(ctx, opts...)
-}
-
-// SetCalendarServiceFactory sets the factory function for creating calendar services
-func SetCalendarServiceFactory(factory func(context.Context, ...option.ClientOption) (*Service, error)) {
-	calendarServiceFactory = factory
-}
-
-// GetFreeSlots retrieves free slots for a given calendar ID and time range
-func (s *Service) GetFreeSlots(ctx context.Context, email string, startTime, endTime time.Time, events []*Event) ([]TimeSlot, error) {
+// GetFreeSlots retrieves free time slots between busy events
+// It splits the day into morning (09:00-12:00) and afternoon (13:00-17:00) slots
+// and finds available time slots in each period
+func GetFreeSlots(startTime, endTime time.Time, busySlots []TimeSlot) ([]TimeSlot, error) {
+	// Validate time range
 	if endTime.Before(startTime) {
 		return nil, fmt.Errorf("end time %v is before start time %v", endTime, startTime)
 	}
 
-	// Convert calendar events to TimeSlots
-	busySlots := make([]TimeSlot, 0, len(events))
-	for _, event := range events {
-		busySlots = append(busySlots, TimeSlot{
-			Start: event.Start,
-			End:   event.End,
-		})
-	}
-
-	// Get free slots between busy slots
-	freeSlots := calculateFreeSlots(startTime, endTime, busySlots)
-
-	return freeSlots, nil
-}
-
-// CreateEvent creates a new calendar event
-func (s *Service) CreateEvent(ctx context.Context, email string, event *Event) error {
-	calendarEvent, err := s.transformEvent(event)
+	// Get working hours configuration
+	loc, err := time.LoadLocation(viper.GetString("workingHours.timezone"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// If organizer email is set, add it as organizer and optional attendee
-	if event.OrganizerEmail != "" {
-		calendarEvent.Organizer = &calendar.EventOrganizer{
-			Email: event.OrganizerEmail,
-		}
-		// Add organizer as optional attendee if not already in attendees list
-		organizerExists := false
-		for _, attendee := range calendarEvent.Attendees {
-			if attendee.Email == event.OrganizerEmail {
-				organizerExists = true
-				break
-			}
-		}
-		if !organizerExists {
-			calendarEvent.Attendees = append(calendarEvent.Attendees, &calendar.EventAttendee{
-				Email:    event.OrganizerEmail,
-				Optional: true,
-			})
-		}
-	}
+	// Create morning and afternoon time ranges
+	date := startTime.Format("2006-01-02")
+	morningStart := parseTime(date, viper.GetString("workingHours.morning.start"), loc)
+	morningEnd := parseTime(date, viper.GetString("workingHours.morning.end"), loc)
+	afternoonStart := parseTime(date, viper.GetString("workingHours.afternoon.start"), loc)
+	afternoonEnd := parseTime(date, viper.GetString("workingHours.afternoon.end"), loc)
 
-	_, err = s.insertEvent(ctx, email, calendarEvent)
-	return err
+	// Find free slots in morning and afternoon
+	morningSlots := findFreeSlots(morningStart, morningEnd, busySlots)
+	afternoonSlots := findFreeSlots(afternoonStart, afternoonEnd, busySlots)
+
+	// Combine all free slots
+	return append(morningSlots, afternoonSlots...), nil
 }
 
-// transformEvent transforms an Event into a calendar.Event
-func (s *Service) transformEvent(event *Event) (*calendar.Event, error) {
-	calendarEvent := &calendar.Event{
-		Summary:     event.Summary,
-		Start:       &calendar.EventDateTime{DateTime: event.Start.Format(time.RFC3339)},
-		End:         &calendar.EventDateTime{DateTime: event.End.Format(time.RFC3339)},
-		Description: event.Description,
-		Attendees:   make([]*calendar.EventAttendee, len(event.Attendees)),
-	}
-
-	for i, attendee := range event.Attendees {
-		calendarEvent.Attendees[i] = &calendar.EventAttendee{
-			Email: attendee,
-		}
-	}
-
-	return calendarEvent, nil
+// parseTime parses a time string in the format "2006-01-02 15:04" in the given location
+func parseTime(date, timeStr string, loc *time.Location) time.Time {
+	t, _ := time.ParseInLocation("2006-01-02 15:04", date+" "+timeStr, loc)
+	return t
 }
 
-// insertEvent inserts a calendar event into the calendar
-func (s *Service) insertEvent(ctx context.Context, email string, event *calendar.Event) (*calendar.Event, error) {
-	return s.service.Events.Insert(email, event).Context(ctx).Do()
-}
-
-// calculateFreeSlots calculates free time slots between busy slots
-func calculateFreeSlots(start, end time.Time, busySlots []TimeSlot) []TimeSlot {
+// findFreeSlots finds available time slots between busy events in a given time range
+func findFreeSlots(start, end time.Time, busySlots []TimeSlot) []TimeSlot {
+	// If no busy slots, the entire range is free
 	if len(busySlots) == 0 {
 		return []TimeSlot{{Start: start, End: end}}
 	}
 
-	// Sort busy slots by start time
+	// Sort busy slots by start time for easier processing
 	sortTimeSlots(busySlots)
 
 	freeSlots := make([]TimeSlot, 0)
-	currentTime := start
 
-	for _, busySlot := range busySlots {
-		if currentTime.Before(busySlot.Start) {
-			freeSlots = append(freeSlots, TimeSlot{
-				Start: currentTime,
-				End:   busySlot.Start,
-			})
-		}
-		currentTime = busySlot.End
+	// Check for free slot before first busy event
+	if start.Before(busySlots[0].Start) {
+		freeSlots = append(freeSlots, TimeSlot{
+			Start: start,
+			End:   minTime(busySlots[0].Start, end),
+		})
 	}
 
-	if currentTime.Before(end) {
+	// Check for free slots between busy events
+	for i := 0; i < len(busySlots)-1; i++ {
+		currentEvent := busySlots[i]
+		nextEvent := busySlots[i+1]
+
+		// If there's a gap between events, it's a free slot
+		if currentEvent.End.Before(end) && nextEvent.Start.After(start) {
+			freeSlots = append(freeSlots, TimeSlot{
+				Start: maxTime(currentEvent.End, start),
+				End:   minTime(nextEvent.Start, end),
+			})
+		}
+	}
+
+	// Check for free slot after last busy event
+	lastEvent := busySlots[len(busySlots)-1]
+	if lastEvent.End.Before(end) {
 		freeSlots = append(freeSlots, TimeSlot{
-			Start: currentTime,
+			Start: maxTime(lastEvent.End, start),
 			End:   end,
 		})
 	}
@@ -164,9 +89,23 @@ func calculateFreeSlots(start, end time.Time, busySlots []TimeSlot) []TimeSlot {
 	return freeSlots
 }
 
-// sortTimeSlots sorts time slots by start time
+// Helper functions for time comparisons
+func minTime(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
+// sortTimeSlots sorts time slots by start time using bubble sort
 func sortTimeSlots(slots []TimeSlot) {
-	// Implementation of a simple bubble sort
 	for i := 0; i < len(slots)-1; i++ {
 		for j := 0; j < len(slots)-i-1; j++ {
 			if slots[j].Start.After(slots[j+1].Start) {

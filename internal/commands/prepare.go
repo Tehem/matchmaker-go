@@ -9,7 +9,6 @@ import (
 	"matchmaker/internal/config"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/api/option"
 )
 
 var (
@@ -18,8 +17,8 @@ var (
 	timeNow         = time.Now // Function to get current time, can be overridden in tests
 )
 
-// prepareCmd represents the prepare command
-var prepareCmd = &cobra.Command{
+// PrepareCmd represents the prepare command
+var PrepareCmd = &cobra.Command{
 	Use:   "prepare",
 	Short: "Prepare the matching process by computing work ranges and checking free slots",
 	Long: `This command will compute work ranges for the target week, and check free slots 
@@ -28,15 +27,10 @@ for each potential reviewer and create an output file 'problem.yml'.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
-		// Load configuration
-		if _, err := config.LoadConfig("configs/config.json"); err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
-		}
-
 		// Initialize calendar service if not already set
 		if calendarService == nil {
 			var err error
-			calendarService, err = calendar.NewCalendarService(ctx, option.WithCredentialsFile("client_secret.json"))
+			calendarService, err = calendar.NewCalendarServiceFromToken(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to create calendar service: %w", err)
 			}
@@ -73,9 +67,9 @@ for each potential reviewer and create an output file 'problem.yml'.`,
 }
 
 func init() {
-	RootCmd.AddCommand(prepareCmd)
+	RootCmd.AddCommand(PrepareCmd)
 
-	prepareCmd.Flags().IntVarP(&weekShift, "week-shift", "w", 0, "Number of weeks to shift from current week (0 = next week)")
+	PrepareCmd.Flags().IntVarP(&weekShift, "week-shift", "w", 0, "Number of weeks to shift from current week (0 = next week)")
 }
 
 // calculateTargetWeek calculates the target week based on the current time and week shift

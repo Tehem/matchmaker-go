@@ -4,25 +4,32 @@ import (
 	"context"
 	"testing"
 
-	"matchmaker/internal/config"
-	"matchmaker/internal/testutil"
+	"matchmaker/internal/calendar"
+	"matchmaker/internal/fs"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestPlanCommand(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Set up mock calendar service
-	calendarService = &testutil.MockCalendarService{}
+	calendarService = &calendar.MockCalendarService{}
 	defer func() { calendarService = nil }()
+
+	// Set up test configuration
+	SetupTestConfig()
 
 	// Create test data
 	planningContent := `matches:
@@ -43,32 +50,8 @@ func TestPlanCommand(t *testing.T) {
       common_skills:
         - frontend`
 
-	configContent := `{
-		"sessions": {
-			"duration": "60m",
-			"min_spacing": "2h",
-			"max_per_person_per_week": 3,
-			"session_prefix": "Review Session"
-		},
-		"calendar": {
-			"work_hours": {
-				"start": "09:00",
-				"end": "17:00"
-			},
-			"timezone": "UTC",
-			"working_days": [
-				"Monday",
-				"Tuesday",
-				"Wednesday",
-				"Thursday",
-				"Friday"
-			]
-		}
-	}`
-
 	// Write test files
-	fs.WriteFile("planning.yml", []byte(planningContent), 0644)
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	mockFS.WriteFile("planning.yml", []byte(planningContent), 0644)
 
 	// Set up command with context
 	ctx := context.Background()
@@ -84,26 +67,23 @@ func TestPlanCommand(t *testing.T) {
 
 func TestPlanCommandInvalidConfig(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Set up mock calendar service
-	calendarService = &testutil.MockCalendarService{}
+	calendarService = &calendar.MockCalendarService{}
 	defer func() { calendarService = nil }()
 
-	// Create invalid config
-	configContent := `{
-		"sessions": {
-			"duration": "invalid",
-			"min_spacing": "invalid"
-		}
-	}`
-
-	fs.WriteFile("configs/config.json", []byte(configContent), 0644)
+	// Set up invalid configuration
+	viper.Reset()
+	viper.Set("sessions.session_prefix", "")
 
 	// Set up command with context
 	ctx := context.Background()
@@ -119,16 +99,22 @@ func TestPlanCommandInvalidConfig(t *testing.T) {
 
 func TestPlanCommandMissingPlanningFile(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Set up mock calendar service
-	calendarService = &testutil.MockCalendarService{}
+	calendarService = &calendar.MockCalendarService{}
 	defer func() { calendarService = nil }()
+
+	// Set up test configuration
+	SetupTestConfig()
 
 	// Set up command with context
 	ctx := context.Background()
@@ -144,20 +130,25 @@ func TestPlanCommandMissingPlanningFile(t *testing.T) {
 
 func TestPlanCommandInvalidPlanningFile(t *testing.T) {
 	// Reset root command
-	resetRootCmdForTest()
+	ResetRootCmdForTest()
+
+	// Save the original filesystem and restore it after the test
+	originalFS := fs.Default
+	defer func() { fs.Default = originalFS }()
 
 	// Set up mock filesystem
-	fs := testutil.NewMockFileSystem()
-	config.SetFileSystem(fs)
-	defer config.SetFileSystem(config.DefaultFileSystem{})
+	mockFS := fs.NewMockFileSystem()
+	fs.Default = mockFS
 
 	// Set up mock calendar service
-	calendarService = &testutil.MockCalendarService{}
+	calendarService = &calendar.MockCalendarService{}
 	defer func() { calendarService = nil }()
 
-	// Create invalid planning file
-	planningContent := `invalid: yaml: content`
-	fs.WriteFile("planning.yml", []byte(planningContent), 0644)
+	// Set up test configuration
+	SetupTestConfig()
+
+	// Write invalid YAML file
+	mockFS.WriteFile("planning.yml", []byte(`invalid: yaml: content`), 0644)
 
 	// Set up command with context
 	ctx := context.Background()

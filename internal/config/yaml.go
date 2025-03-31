@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"matchmaker/internal/fs"
 	"matchmaker/internal/matching"
 
 	"gopkg.in/yaml.v3"
@@ -22,7 +23,7 @@ type Planning struct {
 
 // LoadPeople loads the people configuration from YAML
 func LoadPeople(filename string) ([]*matching.Person, error) {
-	data, err := fs.ReadFile(filename)
+	data, err := fs.Default.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read people file: %w", err)
 	}
@@ -47,7 +48,7 @@ func SaveProblem(people []*matching.Person, targetWeek time.Time, filename strin
 		return fmt.Errorf("failed to marshal problem: %w", err)
 	}
 
-	if err := fs.WriteFile(filename, data, 0644); err != nil {
+	if err := fs.Default.WriteFile(filename, data, 0644); err != nil {
 		return fmt.Errorf("failed to write problem file: %w", err)
 	}
 
@@ -56,7 +57,7 @@ func SaveProblem(people []*matching.Person, targetWeek time.Time, filename strin
 
 // LoadProblem loads the problem configuration from YAML
 func LoadProblem(filename string) ([]*matching.Person, error) {
-	data, err := fs.ReadFile(filename)
+	data, err := fs.Default.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read problem file: %w", err)
 	}
@@ -80,7 +81,7 @@ func SavePlanning(matches []matching.Match, filename string) error {
 		return fmt.Errorf("failed to marshal planning: %w", err)
 	}
 
-	if err := fs.WriteFile(filename, data, 0644); err != nil {
+	if err := fs.Default.WriteFile(filename, data, 0644); err != nil {
 		return fmt.Errorf("failed to write planning file: %w", err)
 	}
 
@@ -89,7 +90,7 @@ func SavePlanning(matches []matching.Match, filename string) error {
 
 // LoadPlanning loads the planning configuration from YAML
 func LoadPlanning(filename string) ([]matching.Match, error) {
-	data, err := fs.ReadFile(filename)
+	data, err := fs.Default.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read planning file: %w", err)
 	}
