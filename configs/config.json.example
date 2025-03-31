@@ -1,0 +1,11 @@
+{
+  "organizerEmail": "your.email@your.company",
+  "sessions": {
+    "maxPerPersonPerWeek": 2,
+    "sessionPrefix": "Pairing "
+  },
+  "workingHours": {
+    "timezone": "Europe/Paris"
+  }
+}
+

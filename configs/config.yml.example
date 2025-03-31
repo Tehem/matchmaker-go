@@ -1,6 +1,0 @@
-organizer_email: your.email@your.company
-sessions:
-  max_per_person_per_week: 3
-  session_prefix: "Review Session"
-calendar:
-  timezone: "Europe/Paris"

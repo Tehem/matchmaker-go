@@ -1,0 +1,32 @@
+{
+  "organizerEmail": "your.email@your.company",
+  "sessions": {
+    "maxPerPersonPerWeek": 2,
+    "sessionPrefix": "Pairing ",
+    "sessionDurationMinutes": 60,
+    "minSessionSpacingHours": 8
+  },
+  "workingHours": {
+    "timezone": "Europe/Paris",
+    "morning": {
+      "start": {
+        "hour": 10,
+        "minute": 0
+      },
+      "end": {
+        "hour": 12,
+        "minute": 0
+      }
+    },
+    "afternoon": {
+      "start": {
+        "hour": 14,
+        "minute": 0
+      },
+      "end": {
+        "hour": 18,
+        "minute": 0
+      }
+    }
+  }
+}
