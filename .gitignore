@@ -2,8 +2,7 @@
 /vendor/
 /configs/config.json
 /client_secret.json
-/persons.yml
+/groups/*.yml
 /problem.yml
 /planning.yml
-/persons.back.yml
 /matchmaker

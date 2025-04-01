@@ -5,6 +5,7 @@ import (
 	"matchmaker/libs/gcalendar"
 	"matchmaker/util"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -90,11 +91,13 @@ func ToSlice(c chan *libs.Range) []*libs.Range {
 	return s
 }
 
-func loadProblem(weekShift int) *libs.Problem {
-	people, err := libs.LoadPersons("./persons.yml")
+func loadProblem(weekShift int, groupFile string) *libs.Problem {
+	groupPath := filepath.Join("groups", groupFile)
+	people, err := libs.LoadPersons(groupPath)
 	util.PanicOnError(err, "Cannot load people file")
 	util.LogInfo("People file loaded", map[string]interface{}{
 		"count": len(people),
+		"file":  groupPath,
 	})
 
 	cal, err := gcalendar.GetGoogleCalendarService()
@@ -170,13 +173,21 @@ week instead of next week. Default value (0) is next week, and 1 is the week aft
 var weekShift int
 
 var prepareCmd = &cobra.Command{
-	Use:   "prepare",
-	Short: "Retrieve available slots for people and parameters for the matching algorithm.",
+	Use:   "prepare [group-file]",
+	Short: "Retrieve available slots for a group of people and parameters for the matching algorithm.",
 	Long: `Compute work ranges for the target week, and check free slots for each potential
-reviewer and create an output file 'problem.yml'.`,
-	Run: func(cmd *cobra.Command, args []string) {
+reviewer in a group and create an output file 'problem.yml'.
 
-		problem := loadProblem(weekShift)
+The group-file parameter specifies which group file to use from the groups directory.
+You can create multiple group files (e.g., teams.yml, projects.yml) to manage different sets of people.
+If no group file is specified, 'group.yml' will be used by default.`,
+	Args: cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		groupFile := "group.yml"
+		if len(args) > 0 {
+			groupFile = args[0]
+		}
+		problem := loadProblem(weekShift, groupFile)
 		yml, _ := problem.ToYaml()
 		err := os.WriteFile("./problem.yml", yml, os.FileMode(0644))
 		util.PanicOnError(err, "Can't yml problem file")
