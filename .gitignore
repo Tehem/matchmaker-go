@@ -1,6 +1,7 @@
 /.idea/
 /vendor/
-/configs/*.json
+/configs/client_secret.json
+/configs/config.json
 /groups/*.yml
 /problem.yml
 /planning.yml
