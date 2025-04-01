@@ -66,7 +66,7 @@ var planCmd = &cobra.Command{
 				})
 			}
 
-			_, err := cal.Events.Insert(organizer, &calendar.Event{
+			event := &calendar.Event{
 				Start: &calendar.EventDateTime{
 					DateTime: gcalendar.FormatTime(session.Range.Start),
 					TimeZone: viper.GetString("workingHours.timezone"),
@@ -75,6 +75,9 @@ var planCmd = &cobra.Command{
 					DateTime: gcalendar.FormatTime(session.Range.End),
 					TimeZone: viper.GetString("workingHours.timezone"),
 				},
+				Summary:         session.GetDisplayName(),
+				Attendees:       attendees,
+				GuestsCanModify: true,
 				ConferenceData: &calendar.ConferenceData{
 					CreateRequest: &calendar.CreateConferenceRequest{
 						RequestId: uuid.New().String(),
@@ -86,10 +89,9 @@ var planCmd = &cobra.Command{
 						},
 					},
 				},
-				Summary:         session.GetDisplayName(),
-				Attendees:       attendees,
-				GuestsCanModify: true,
-			}).ConferenceDataVersion(1).Do()
+			}
+
+			_, err := cal.Events.Insert(organizer, event).ConferenceDataVersion(1).Do()
 			util.PanicOnError(err, "Can't create event")
 			logrus.Info("✔ " + session.GetDisplayName())
 		}
