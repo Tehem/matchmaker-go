@@ -2,7 +2,6 @@ package commands
 
 import (
 	"flag"
-	"log"
 	"matchmaker/libs"
 	"matchmaker/util"
 	"os"
@@ -30,19 +29,22 @@ file with reviewers tuples and planned slots.`,
 		if cpuprofile != "" {
 			f, err := os.Create(cpuprofile)
 			if err != nil {
-				log.Fatal(err)
+				util.LogError(err, "Failed to create CPU profile file")
+				return
 			}
 			_ = pprof.StartCPUProfile(f)
 			defer pprof.StopCPUProfile()
 		}
 
 		yml, err := os.ReadFile("./problem.yml")
-		util.PanicOnError(err, "Can't yml problem description")
+		util.PanicOnError(err, "Can't read problem description")
 		problem, err := libs.LoadProblem(yml)
+		util.PanicOnError(err, "Can't load problem")
 		solution := libs.Solve(problem)
 
-		planYml, _ := yaml.Marshal(solution)
+		planYml, err := yaml.Marshal(solution)
+		util.PanicOnError(err, "Can't marshal solution")
 		writeErr := os.WriteFile("./planning.yml", planYml, os.FileMode(0644))
-		util.PanicOnError(writeErr, "Can't yml planning result")
+		util.PanicOnError(writeErr, "Can't write planning result")
 	},
 }

@@ -13,6 +13,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 type Solution struct {
@@ -38,35 +40,35 @@ func Solve(problem *Problem) *Solution {
 
 	worstMissingCoverage, _ := getCoveragePerformance([]*ReviewSession{}, problem.WorkRanges, problem.TargetCoverage)
 
-	println(missingCoverageToString(missingCoverage))
-	println(missingCoverageToString(worstMissingCoverage))
-
-	println(maxCoverage)
+	util.LogInfo("Coverage information", map[string]interface{}{
+		"missingCoverage":      missingCoverageToString(missingCoverage),
+		"worstMissingCoverage": missingCoverageToString(worstMissingCoverage),
+		"maxCoverage":          maxCoverage,
+	})
 
 	sort.Sort(ByStart(solution.Sessions))
 
 	printSessions(solution.Sessions)
 
-	//println("Coverage:")
-	//for i, value := range coverage {
-	//	println("  " + strconv.Itoa(i) + " -> " + strconv.Itoa(value))
-	//}
-
 	return solution
 }
 
 func printSessions(sessions []*ReviewSession) {
-	print(len(sessions), " session(s):")
-	println()
+	util.LogInfo("Generated sessions", map[string]interface{}{
+		"count": len(sessions),
+	})
 	for _, session := range sessions {
 		printSession(session)
 	}
 }
+
 func printSession(session *ReviewSession) {
-	println(session.Reviewers.People[0].Email + "\t" +
-		session.Reviewers.People[1].Email + "\t" +
-		session.Range.Start.Format(time.Stamp) + "\t->\t" +
-		session.Range.End.Format(time.Stamp) + "\t")
+	util.LogInfo("Session", map[string]interface{}{
+		"person1": session.Reviewers.People[0].Email,
+		"person2": session.Reviewers.People[1].Email,
+		"start":   session.Range.Start.Format(time.Stamp),
+		"end":     session.Range.End.Format(time.Stamp),
+	})
 }
 
 type solver func([]*ReviewSession, string) ([]*ReviewSession, int)
@@ -236,13 +238,19 @@ func isSessionCompatible(session *ReviewSession, sessions []*ReviewSession) bool
 
 func printRanges(ranges []*Range) {
 	for _, currentRange := range ranges {
-		println(currentRange.Start.Format(time.RFC3339) + " -> " + currentRange.End.Format(time.RFC3339))
+		util.LogInfo("Range", map[string]interface{}{
+			"start": currentRange.Start.Format(time.RFC3339),
+			"end":   currentRange.End.Format(time.RFC3339),
+		})
 	}
 }
 
 func printSquads(squads []*Squad) {
 	for _, squad := range squads {
-		println(squad.People[0].Email + " + " + squad.People[1].Email)
+		util.LogInfo("Squad", map[string]interface{}{
+			"person1": squad.People[0].Email,
+			"person2": squad.People[1].Email,
+		})
 	}
 }
 
@@ -265,7 +273,7 @@ func (squad *Squad) GetDisplayName() string {
 func getNameFromEmail(email string) string {
 	beforeA := strings.Split(email, "@")[0]
 	firstName := strings.Split(beforeA, ".")[0]
-	return strings.Title(firstName)
+	return cases.Title(language.English).String(firstName)
 }
 
 type Score struct {

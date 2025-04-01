@@ -102,9 +102,6 @@ same competences. If not specified the reviewer can be paired with any other rev
 
 Copy the provided example file `persons.yml.example` into a new `persons.yml` file and replace values with actual users.
 
-TEMP / TO REMOVE :
-Adapt the master email in this file : `commands/plan.go:43`
-
 ## Preparing
 
     matchmaker prepare [--week-shift value [default=0]]

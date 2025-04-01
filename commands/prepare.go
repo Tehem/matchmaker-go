@@ -7,7 +7,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"google.golang.org/api/calendar/v3"
@@ -94,14 +93,18 @@ func ToSlice(c chan *libs.Range) []*libs.Range {
 func loadProblem(weekShift int) *libs.Problem {
 	people, err := libs.LoadPersons("./persons.yml")
 	util.PanicOnError(err, "Cannot load people file")
-	logrus.WithField("count", len(people)).Info("People file loaded")
+	util.LogInfo("People file loaded", map[string]interface{}{
+		"count": len(people),
+	})
 
 	cal, err := gcalendar.GetGoogleCalendarService()
 	util.PanicOnError(err, "Can't get Google Calendar client")
-	logrus.Info("Connected to google calendar")
+	util.LogInfo("Connected to google calendar", nil)
 
 	beginOfWeek := FirstDayOfISOWeek(weekShift)
-	logrus.WithField("weekFirstDay", beginOfWeek).Info("Planning for week")
+	util.LogInfo("Planning for week", map[string]interface{}{
+		"weekFirstDay": beginOfWeek,
+	})
 
 	workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
 	busyTimes := []*libs.BusyTime{}
@@ -109,13 +112,14 @@ func loadProblem(weekShift int) *libs.Problem {
 		if person.MaxSessionsPerWeek == 0 {
 			continue
 		}
-		personLogger := logrus.WithField("person", person.Email)
-		personLogger.Info("Loading busy detail")
+		util.LogInfo("Loading busy detail", map[string]interface{}{
+			"person": person.Email,
+		})
 		for _, workRange := range workRanges {
-			personLogger.WithFields(logrus.Fields{
+			util.LogInfo("Loading busy detail on range", map[string]interface{}{
 				"start": workRange.Start,
 				"end":   workRange.End,
-			}).Info("Loading busy detail on range")
+			})
 			result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
 				TimeMin: gcalendar.FormatTime(workRange.Start),
 				TimeMax: gcalendar.FormatTime(workRange.End),
@@ -127,9 +131,14 @@ func loadProblem(weekShift int) *libs.Problem {
 			}).Do()
 			util.PanicOnError(err, "Can't retrieve free/busy data for "+person.Email)
 			busyTimePeriods := result.Calendars[person.Email].Busy
-			println(person.Email + ":")
+			util.LogInfo("Person busy times", map[string]interface{}{
+				"person": person.Email,
+			})
 			for _, busyTimePeriod := range busyTimePeriods {
-				println("  - " + busyTimePeriod.Start + " -> " + busyTimePeriod.End)
+				util.LogInfo("Busy time period", map[string]interface{}{
+					"start": busyTimePeriod.Start,
+					"end":   busyTimePeriod.End,
+				})
 				busyTimes = append(busyTimes, &libs.BusyTime{
 					Person: person,
 					Range: &libs.Range{

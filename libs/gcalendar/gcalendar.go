@@ -3,7 +3,7 @@ package gcalendar
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"matchmaker/util"
 	"net/http"
 	"net/url"
 	"os"
@@ -49,7 +49,8 @@ func FormatTime(date time.Time) string {
 func GetHttpClient(ctx context.Context, config *oauth2.Config) *http.Client {
 	cacheFile, err := tokenCacheFile()
 	if err != nil {
-		log.Fatalf("Unable to get path to cached credential file. %v", err)
+		util.LogError(err, "Unable to get path to cached credential file")
+		return nil
 	}
 	tok, err := tokenFromFile(cacheFile)
 	if err != nil {
@@ -63,17 +64,20 @@ func GetHttpClient(ctx context.Context, config *oauth2.Config) *http.Client {
 // It returns the retrieved Token.
 func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
+	util.LogInfo("Please go to the following link in your browser", map[string]interface{}{
+		"url": authURL,
+	})
 
 	var code string
 	if _, err := fmt.Scan(&code); err != nil {
-		log.Fatalf("Unable to read authorization code %v", err)
+		util.LogError(err, "Unable to read authorization code")
+		return nil
 	}
 
 	tok, err := config.Exchange(oauth2.NoContext, code)
 	if err != nil {
-		log.Fatalf("Unable to retrieve token from web %v", err)
+		util.LogError(err, "Unable to retrieve token from web")
+		return nil
 	}
 	return tok
 }
@@ -107,10 +111,13 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 // saveToken uses a file path to create a file and store the
 // token in it.
 func saveToken(file string, token *oauth2.Token) {
-	fmt.Printf("Saving credential file to: %s\n", file)
+	util.LogInfo("Saving credential file", map[string]interface{}{
+		"path": file,
+	})
 	f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
+		util.LogError(err, "Unable to cache oauth token")
+		return
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)

@@ -1,12 +1,16 @@
 package main
 
 import (
-	"fmt"
-	"github.com/spf13/viper"
 	"matchmaker/commands"
+	"matchmaker/util"
+
+	"github.com/spf13/viper"
 )
 
 func main() {
+	// Initialize logging
+	util.ConfigureLogging()
+
 	viper.AddConfigPath("./configs")
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
@@ -30,10 +34,11 @@ func main() {
 	err := viper.ReadInConfig()
 	if err != nil { // Handle errors reading the config file
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			fmt.Printf("config file not found!\n Please initialiaze it " +
-				"with `cp configs/config.json.example configs/config.json` and adjust values accordingly.\n")
+			util.LogInfo("Config file not found", map[string]interface{}{
+				"message": "Please initialize it with `cp configs/config.json.example configs/config.json` and adjust values accordingly.",
+			})
 		} else {
-			panic(fmt.Errorf("fatal error reading config file: %w", err))
+			util.LogError(err, "Fatal error reading config file")
 		}
 	}
 
