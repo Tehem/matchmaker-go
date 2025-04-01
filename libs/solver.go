@@ -2,9 +2,6 @@ package libs
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-	logger "github.com/transcovo/go-chpr-logger"
 	"matchmaker/util"
 	"os"
 	"os/signal"
@@ -13,6 +10,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 type Solution struct {
@@ -133,7 +133,7 @@ func getSolver(problem *Problem, allSessions []*ReviewSession) solver {
 			derivedSolutions = append(derivedSolutions, derivedSolution)
 		}
 
-		logger.WithFields(logrus.Fields{
+		logrus.WithFields(logrus.Fields{
 			"iterations": iterations,
 			"best":       missingCoverageToString(bestCoveragePerformance),
 			"path":       path,

@@ -7,10 +7,9 @@ import (
 	"os"
 	"time"
 
-	logrus2 "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	logger "github.com/transcovo/go-chpr-logger"
 	"google.golang.org/api/calendar/v3"
 )
 
@@ -95,14 +94,14 @@ func ToSlice(c chan *libs.Range) []*libs.Range {
 func loadProblem(weekShift int) *libs.Problem {
 	people, err := libs.LoadPersons("./persons.yml")
 	util.PanicOnError(err, "Cannot load people file")
-	logger.WithField("count", len(people)).Info("People file loaded")
+	logrus.WithField("count", len(people)).Info("People file loaded")
 
 	cal, err := gcalendar.GetGoogleCalendarService()
 	util.PanicOnError(err, "Can't get Google Calendar client")
-	logger.Info("Connected to google calendar")
+	logrus.Info("Connected to google calendar")
 
 	beginOfWeek := FirstDayOfISOWeek(weekShift)
-	logger.WithField("weekFirstDay", beginOfWeek).Info("Planning for week")
+	logrus.WithField("weekFirstDay", beginOfWeek).Info("Planning for week")
 
 	workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
 	busyTimes := []*libs.BusyTime{}
@@ -110,10 +109,10 @@ func loadProblem(weekShift int) *libs.Problem {
 		if person.MaxSessionsPerWeek == 0 {
 			continue
 		}
-		personLogger := logger.WithField("person", person.Email)
+		personLogger := logrus.WithField("person", person.Email)
 		personLogger.Info("Loading busy detail")
 		for _, workRange := range workRanges {
-			personLogger.WithFields(logrus2.Fields{
+			personLogger.WithFields(logrus.Fields{
 				"start": workRange.Start,
 				"end":   workRange.End,
 			}).Info("Loading busy detail on range")

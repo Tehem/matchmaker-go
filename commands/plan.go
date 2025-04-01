@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	logger "github.com/transcovo/go-chpr-logger"
 	"google.golang.org/api/calendar/v3"
 	"gopkg.in/yaml.v2"
 )
@@ -91,7 +91,7 @@ var planCmd = &cobra.Command{
 				GuestsCanModify: true,
 			}).ConferenceDataVersion(1).Do()
 			util.PanicOnError(err, "Can't create event")
-			logger.Info("✔ " + session.GetDisplayName())
+			logrus.Info("✔ " + session.GetDisplayName())
 		}
 	},
 }
