@@ -1,6 +1,6 @@
 # Matchmaker
 
-Matchmaker takes care of matching and planning of reviewers and review slots in people's calendars.
+Matchmaker takes care of matching coworkers and planning review or pairing slots in people's calendars.
 
 ## Install dependencies
 
