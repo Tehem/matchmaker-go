@@ -142,7 +142,7 @@ var tokenCmd = &cobra.Command{
 	Short: "Retrieve a Google Calendar API token.",
 	Long:  `Authorize the app to access your Google Agenda and get an auth token for Google Calendar API.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		b, err := os.ReadFile("client_secret.json")
+		b, err := os.ReadFile(filepath.Join("configs", "client_secret.json"))
 		if err != nil {
 			util.LogError(err, "Unable to read client secret file")
 			return

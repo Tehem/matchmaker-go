@@ -38,7 +38,7 @@ have the authorization to create events and query availabilities on all the list
 You can follow the steps described [here](https://github.com/googleapis/google-api-nodejs-client#oauth2-client) to 
 set up an OAuth2 client for the application.
 
-Copy `client_secret.json.example` into a new `client_secret.json` file and replace values 
+Copy `configs/client_secret.json.example` into a new `configs/client_secret.json` file and replace values 
 for `client_id`, `client_secret` and `project_id`.
 
 ## Get an access token

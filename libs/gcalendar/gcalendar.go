@@ -20,7 +20,7 @@ import (
 func GetGoogleCalendarService() (*calendar.Service, error) {
 	ctx := context.Background()
 
-	b, err := os.ReadFile("client_secret.json")
+	b, err := os.ReadFile(filepath.Join("configs", "client_secret.json"))
 	if err != nil {
 		return nil, err
 	}
