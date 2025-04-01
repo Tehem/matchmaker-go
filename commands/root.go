@@ -1,9 +1,10 @@
 package commands
 
 import (
-	"fmt"
-	"github.com/spf13/cobra"
+	"matchmaker/util"
 	"os"
+
+	"github.com/spf13/cobra"
 )
 
 var rootCmd = &cobra.Command{
@@ -16,7 +17,7 @@ they are both not busy.`,
 
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		util.LogError(err, "Failed to execute command")
 		os.Exit(1)
 	}
 }

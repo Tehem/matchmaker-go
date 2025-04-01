@@ -1,9 +1,13 @@
 package libs
 
 import (
+	"matchmaker/util"
 	"math/rand"
 	"time"
 )
+
+// Squads is a slice of Squad pointers
+type Squads []*Squad
 
 func generateSquads(people []*Person, busyTimes []*BusyTime) []*Squad {
 	masters := filterPersons(people, true)
@@ -37,12 +41,20 @@ func generateSquads(people []*Person, busyTimes []*BusyTime) []*Squad {
 		squads[i], squads[j] = squads[j], squads[i]
 	}
 
-	print(len(squads), " squad(s):")
+	util.LogInfo("Generated squads", map[string]interface{}{
+		"count": len(squads),
+	})
 	for i := range squads {
-		println(squads[i].People[0].Email + "\t" + squads[i].People[1].Email + "\n")
-		println("\tBusy: ")
+		util.LogInfo("Squad", map[string]interface{}{
+			"person1": squads[i].People[0].Email,
+			"person2": squads[i].People[1].Email,
+		})
+		util.LogInfo("Busy ranges", nil)
 		for j := range squads[i].BusyRanges {
-			println("Start: " + squads[i].BusyRanges[j].Start.Format(time.Stamp) + "\tEnd: " + squads[i].BusyRanges[j].End.Format(time.Stamp))
+			util.LogInfo("Busy range", map[string]interface{}{
+				"start": squads[i].BusyRanges[j].Start.Format(time.Stamp),
+				"end":   squads[i].BusyRanges[j].End.Format(time.Stamp),
+			})
 		}
 	}
 	return squads
@@ -103,4 +115,20 @@ func mergeRanges(range1 *Range, range2 *Range) *Range {
 
 func haveIntersection(range1 *Range, range2 *Range) bool {
 	return range1.End.After(range2.Start) && range2.End.After(range1.Start)
+}
+
+func (squads Squads) Print() {
+	for i := 0; i < len(squads); i++ {
+		util.LogInfo("Squad", map[string]interface{}{
+			"person1": squads[i].People[0].Email,
+			"person2": squads[i].People[1].Email,
+		})
+		util.LogInfo("Busy ranges", nil)
+		for j := 0; j < len(squads[i].BusyRanges); j++ {
+			util.LogInfo("Busy range", map[string]interface{}{
+				"start": squads[i].BusyRanges[j].Start.Format(time.Stamp),
+				"end":   squads[i].BusyRanges[j].End.Format(time.Stamp),
+			})
+		}
+	}
 }

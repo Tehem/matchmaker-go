@@ -1,17 +1,16 @@
 package commands
 
 import (
-	logrus2 "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	logger "github.com/transcovo/go-chpr-logger"
-	"google.golang.org/api/calendar/v3"
-	"io/ioutil"
 	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/util"
 	"os"
+	"path/filepath"
 	"time"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"google.golang.org/api/calendar/v3"
 )
 
 func FirstDayOfISOWeek(weekShift int) time.Time {
@@ -92,17 +91,23 @@ func ToSlice(c chan *libs.Range) []*libs.Range {
 	return s
 }
 
-func loadProblem(weekShift int) *libs.Problem {
-	people, err := libs.LoadPersons("./persons.yml")
+func loadProblem(weekShift int, groupFile string) *libs.Problem {
+	groupPath := filepath.Join("groups", groupFile)
+	people, err := libs.LoadPersons(groupPath)
 	util.PanicOnError(err, "Cannot load people file")
-	logger.WithField("count", len(people)).Info("People file loaded")
+	util.LogInfo("People file loaded", map[string]interface{}{
+		"count": len(people),
+		"file":  groupPath,
+	})
 
 	cal, err := gcalendar.GetGoogleCalendarService()
 	util.PanicOnError(err, "Can't get Google Calendar client")
-	logger.Info("Connected to google calendar")
+	util.LogInfo("Connected to google calendar", nil)
 
 	beginOfWeek := FirstDayOfISOWeek(weekShift)
-	logger.WithField("weekFirstDay", beginOfWeek).Info("Planning for week")
+	util.LogInfo("Planning for week", map[string]interface{}{
+		"weekFirstDay": beginOfWeek,
+	})
 
 	workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
 	busyTimes := []*libs.BusyTime{}
@@ -110,13 +115,14 @@ func loadProblem(weekShift int) *libs.Problem {
 		if person.MaxSessionsPerWeek == 0 {
 			continue
 		}
-		personLogger := logger.WithField("person", person.Email)
-		personLogger.Info("Loading busy detail")
+		util.LogInfo("Loading busy detail", map[string]interface{}{
+			"person": person.Email,
+		})
 		for _, workRange := range workRanges {
-			personLogger.WithFields(logrus2.Fields{
+			util.LogInfo("Loading busy detail on range", map[string]interface{}{
 				"start": workRange.Start,
 				"end":   workRange.End,
-			}).Info("Loading busy detail on range")
+			})
 			result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
 				TimeMin: gcalendar.FormatTime(workRange.Start),
 				TimeMax: gcalendar.FormatTime(workRange.End),
@@ -128,9 +134,14 @@ func loadProblem(weekShift int) *libs.Problem {
 			}).Do()
 			util.PanicOnError(err, "Can't retrieve free/busy data for "+person.Email)
 			busyTimePeriods := result.Calendars[person.Email].Busy
-			println(person.Email + ":")
+			util.LogInfo("Person busy times", map[string]interface{}{
+				"person": person.Email,
+			})
 			for _, busyTimePeriod := range busyTimePeriods {
-				println("  - " + busyTimePeriod.Start + " -> " + busyTimePeriod.End)
+				util.LogInfo("Busy time period", map[string]interface{}{
+					"start": busyTimePeriod.Start,
+					"end":   busyTimePeriod.End,
+				})
 				busyTimes = append(busyTimes, &libs.BusyTime{
 					Person: person,
 					Range: &libs.Range{
@@ -162,15 +173,23 @@ week instead of next week. Default value (0) is next week, and 1 is the week aft
 var weekShift int
 
 var prepareCmd = &cobra.Command{
-	Use:   "prepare",
-	Short: "Retrieve available slots for people and parameters for the matching algorithm.",
+	Use:   "prepare [group-file]",
+	Short: "Retrieve available slots for a group of people and parameters for the matching algorithm.",
 	Long: `Compute work ranges for the target week, and check free slots for each potential
-reviewer and create an output file 'problem.yml'.`,
-	Run: func(cmd *cobra.Command, args []string) {
+reviewer in a group and create an output file 'problem.yml'.
 
-		problem := loadProblem(weekShift)
+The group-file parameter specifies which group file to use from the groups directory.
+You can create multiple group files (e.g., teams.yml, projects.yml) to manage different sets of people.
+If no group file is specified, 'group.yml' will be used by default.`,
+	Args: cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		groupFile := "group.yml"
+		if len(args) > 0 {
+			groupFile = args[0]
+		}
+		problem := loadProblem(weekShift, groupFile)
 		yml, _ := problem.ToYaml()
-		err := ioutil.WriteFile("./problem.yml", yml, os.FileMode(0644))
+		err := os.WriteFile("./problem.yml", yml, os.FileMode(0644))
 		util.PanicOnError(err, "Can't yml problem file")
 	},
 }

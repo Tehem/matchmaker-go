@@ -1,38 +1,40 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/calendar/v3"
-	"io/ioutil"
-	"log"
+	"matchmaker/util"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"time"
 
-	"context"
-	"os/user"
+	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
 func getClient(config *oauth2.Config) *http.Client {
 	cacheFile, err := tokenCacheFile()
 	if err != nil {
-		log.Fatalf("Unable to get path to cached credential file. %v", err)
+		util.LogError(err, "Unable to get path to cached credential file")
+		return nil
 	}
 	tok, err := tokenFromFile(cacheFile)
 	if err != nil {
 		tok = getTokenFromWeb(config)
 		saveToken(cacheFile, tok)
 	} else {
-		log.Printf("Using cached token from %q", cacheFile)
+		util.LogInfo("Using cached token", map[string]interface{}{
+			"file": cacheFile,
+		})
 	}
 	return config.Client(context.Background(), tok)
 }
@@ -47,7 +49,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 			return
 		}
 		if req.FormValue("state") != randState {
-			log.Printf("State doesn't match: req = %#v", req)
+			util.LogError(nil, "State doesn't match")
 			http.Error(rw, "", 500)
 			return
 		}
@@ -57,7 +59,7 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 			ch <- code
 			return
 		}
-		log.Printf("no code")
+		util.LogError(nil, "No code received")
 		http.Error(rw, "", 500)
 	}))
 	defer ts.Close()
@@ -65,13 +67,18 @@ func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
 	config.RedirectURL = ts.URL
 	authURL := config.AuthCodeURL(randState)
 	go openURL(authURL)
-	log.Printf("Authorize this app at: %s", authURL)
+	util.LogInfo("Authorize this app", map[string]interface{}{
+		"url": authURL,
+	})
 	code := <-ch
-	log.Printf("Got code: %s", code)
+	util.LogInfo("Got authorization code", map[string]interface{}{
+		"code": code,
+	})
 
 	tok, err := config.Exchange(context.TODO(), code)
 	if err != nil {
-		log.Fatalf("Token exchange error: %v", err)
+		util.LogError(err, "Token exchange error")
+		return nil
 	}
 	return tok
 }
@@ -84,7 +91,7 @@ func openURL(url string) {
 			return
 		}
 	}
-	log.Printf("Error opening URL in browser.")
+	util.LogError(nil, "Error opening URL in browser")
 }
 
 // tokenCacheFile generates credential file path/filename.
@@ -114,10 +121,13 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 
 // Saves a token to a file path.
 func saveToken(path string, token *oauth2.Token) {
-	fmt.Printf("Saving credential file to: %s\n", path)
+	util.LogInfo("Saving credential file", map[string]interface{}{
+		"path": path,
+	})
 	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
-		log.Fatalf("Unable to cache oauth token: %v", err)
+		util.LogError(err, "Unable to cache oauth token")
+		return
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
@@ -132,41 +142,46 @@ var tokenCmd = &cobra.Command{
 	Short: "Retrieve a Google Calendar API token.",
 	Long:  `Authorize the app to access your Google Agenda and get an auth token for Google Calendar API.`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		//ctx := context.Background()
-		b, err := ioutil.ReadFile("client_secret.json")
+		b, err := os.ReadFile(filepath.Join("configs", "client_secret.json"))
 		if err != nil {
-			log.Fatalf("Unable to read client secret file: %v", err)
+			util.LogError(err, "Unable to read client secret file")
+			return
 		}
 
 		// If modifying these scopes, delete your previously saved token file
 		config, err := google.ConfigFromJSON(b, calendar.CalendarScope)
 		if err != nil {
-			log.Fatalf("Unable to parse client secret file to config: %v", err)
+			util.LogError(err, "Unable to parse client secret file to config")
+			return
 		}
 		client := getClient(config)
 
 		srv, err := calendar.New(client)
 		if err != nil {
-			log.Fatalf("Unable to retrieve Calendar client: %v", err)
+			util.LogError(err, "Unable to retrieve Calendar client")
+			return
 		}
 
 		t := time.Now().Format(time.RFC3339)
 		events, err := srv.Events.List("primary").ShowDeleted(false).
 			SingleEvents(true).TimeMin(t).MaxResults(10).OrderBy("startTime").Do()
 		if err != nil {
-			log.Fatalf("Unable to retrieve next ten of the user's events: %v", err)
+			util.LogError(err, "Unable to retrieve next ten of the user's events")
+			return
 		}
-		fmt.Println("Upcoming events:")
+		util.LogInfo("Upcoming events", nil)
 		if len(events.Items) == 0 {
-			fmt.Println("No upcoming events found.")
+			util.LogInfo("No upcoming events found", nil)
 		} else {
 			for _, item := range events.Items {
 				date := item.Start.DateTime
 				if date == "" {
 					date = item.Start.Date
 				}
-				fmt.Printf("%v (%v)\n", item.Summary, date)
+				util.LogInfo("Event", map[string]interface{}{
+					"summary": item.Summary,
+					"date":    date,
+				})
 			}
 		}
 	},

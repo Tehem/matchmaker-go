@@ -1,6 +1,6 @@
 # Matchmaker
 
-Matchmaker takes care of matching and planning of reviewers and review slots in people's calendars.
+Matchmaker takes care of matching coworkers and planning review or pairing slots in people's calendars.
 
 ## Install dependencies
 
@@ -38,7 +38,7 @@ have the authorization to create events and query availabilities on all the list
 You can follow the steps described [here](https://github.com/googleapis/google-api-nodejs-client#oauth2-client) to 
 set up an OAuth2 client for the application.
 
-Copy `client_secret.json.example` into a new `client_secret.json` file and replace values 
+Copy `configs/client_secret.json.example` into a new `configs/client_secret.json` file and replace values 
 for `client_id`, `client_secret` and `project_id`.
 
 ## Get an access token
@@ -74,7 +74,7 @@ Then retry the command to create the token.
 
 ## Setup
 
-You need to create/retrieve the `persons.yml` file containing people configuration for review.
+You need to create/retrieve a group file `groups/group.yml` file containing people configuration for review.
 Format example:
 ```yaml
 - email: john.doe@example.com
@@ -100,17 +100,19 @@ If set to 0, it also falls back to the default value.
 **skills** [optional] describes the areas of expertise of a reviewer in order to create pairs of people with 
 same competences. If not specified the reviewer can be paired with any other reviewer (no matter the skills)
 
-Copy the provided example file `persons.yml.example` into a new `persons.yml` file and replace values with actual users.
-
-TEMP / TO REMOVE :
-Adapt the master email in this file : `commands/plan.go:43`
+Copy the provided example file `group.yml.example` into a new `group.yml` file and replace values with actual users. 
+You can have as many groups of people as you want, and name them as you want.
 
 ## Preparing
 
-    matchmaker prepare [--week-shift value [default=0]]
+    matchmaker prepare [group-file [default=group.yml]] [--week-shift value [default=0]]
 
 This command will compute work ranges for the target week, and check free slots for each potential
-reviewer and create an output file `problem.yml`.
+reviewer in the group file and create an output file `problem.yml`.
+
+The group-file parameter specifies which group file to use from the groups directory.
+You can create multiple group files (e.g., `teams.yml`, `projects.yml`) to manage different sets of people.
+If no group file is specified, `group.yml` will be used by default.
 
 By default, the command plans for the upcoming monday, you can provide a `weekShift` value as a parameter, allowing
 to plan for further weeks (1 = the week after upcoming monday, etc.)

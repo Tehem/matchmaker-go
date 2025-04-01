@@ -1,8 +1,9 @@
 package libs
 
 import (
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
+	"os"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Person struct {
@@ -14,7 +15,7 @@ type Person struct {
 }
 
 func LoadPersons(path string) ([]*Person, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

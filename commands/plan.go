@@ -1,16 +1,17 @@
 package commands
 
 import (
-	"github.com/google/uuid"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	logger "github.com/transcovo/go-chpr-logger"
-	"google.golang.org/api/calendar/v3"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/util"
+	"os"
+
+	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"google.golang.org/api/calendar/v3"
+	"gopkg.in/yaml.v3"
 )
 
 func LoadPlan(yml []byte) (*libs.Solution, error) {
@@ -32,7 +33,7 @@ var planCmd = &cobra.Command{
 	Short: "Create events in people's calendars.",
 	Long:  `Take input from the 'planning.yml' file and create session events in people's Google Calendar.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		yml, err := ioutil.ReadFile("./planning.yml")
+		yml, err := os.ReadFile("./planning.yml")
 		util.PanicOnError(err, "Can't yml problem description")
 
 		cal, err := gcalendar.GetGoogleCalendarService()
@@ -65,7 +66,7 @@ var planCmd = &cobra.Command{
 				})
 			}
 
-			_, err := cal.Events.Insert(organizer, &calendar.Event{
+			event := &calendar.Event{
 				Start: &calendar.EventDateTime{
 					DateTime: gcalendar.FormatTime(session.Range.Start),
 					TimeZone: viper.GetString("workingHours.timezone"),
@@ -74,6 +75,9 @@ var planCmd = &cobra.Command{
 					DateTime: gcalendar.FormatTime(session.Range.End),
 					TimeZone: viper.GetString("workingHours.timezone"),
 				},
+				Summary:         session.GetDisplayName(),
+				Attendees:       attendees,
+				GuestsCanModify: true,
 				ConferenceData: &calendar.ConferenceData{
 					CreateRequest: &calendar.CreateConferenceRequest{
 						RequestId: uuid.New().String(),
@@ -85,12 +89,11 @@ var planCmd = &cobra.Command{
 						},
 					},
 				},
-				Summary:         session.GetDisplayName(),
-				Attendees:       attendees,
-				GuestsCanModify: true,
-			}).ConferenceDataVersion(1).Do()
+			}
+
+			_, err := cal.Events.Insert(organizer, event).ConferenceDataVersion(1).Do()
 			util.PanicOnError(err, "Can't create event")
-			logger.Info("✔ " + session.GetDisplayName())
+			logrus.Info("✔ " + session.GetDisplayName())
 		}
 	},
 }

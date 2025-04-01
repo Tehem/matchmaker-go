@@ -1,12 +1,55 @@
 package util
 
 import (
-	"github.com/transcovo/go-chpr-logger"
+	"os"
+
+	"github.com/sirupsen/logrus"
 )
 
+// ConfigureLogging sets up logging with consistent formatting and level
+func ConfigureLogging() {
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+		PadLevelText:  true,
+	})
+
+	// Set log level based on environment
+	if os.Getenv("DEBUG") == "true" {
+		logrus.SetLevel(logrus.DebugLevel)
+	} else {
+		logrus.SetLevel(logrus.InfoLevel)
+	}
+}
+
+// PanicOnError logs an error with context and panics
 func PanicOnError(err error, message string) {
 	if err != nil {
-		logger.GetLogger().WithError(err).Fatal(message)
+		logrus.WithError(err).Fatal(message)
+	}
+}
+
+// LogError logs an error with context
+func LogError(err error, message string) {
+	if err != nil {
+		logrus.WithError(err).Error(message)
+	}
+}
+
+// LogInfo logs an info message with optional fields
+func LogInfo(message string, fields map[string]interface{}) {
+	if fields != nil {
+		logrus.WithFields(fields).Info(message)
+	} else {
+		logrus.Info(message)
+	}
+}
+
+// LogDebug logs a debug message with optional fields
+func LogDebug(message string, fields map[string]interface{}) {
+	if fields != nil {
+		logrus.WithFields(fields).Debug(message)
+	} else {
+		logrus.Debug(message)
 	}
 }
 
