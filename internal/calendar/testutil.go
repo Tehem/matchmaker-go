@@ -64,5 +64,19 @@ func (m *MockCalendarService) CreateEvent(ctx context.Context, email string, eve
 	return nil
 }
 
+func (m *MockCalendarService) GetBusySlots(ctx context.Context, email string, startTime, endTime time.Time) ([]TimeSlot, error) {
+	// Return some mock busy slots
+	return []TimeSlot{
+		{
+			Start: time.Date(2024, 3, 25, 9, 0, 0, 0, time.UTC),
+			End:   time.Date(2024, 3, 25, 10, 0, 0, 0, time.UTC),
+		},
+		{
+			Start: time.Date(2024, 3, 25, 14, 0, 0, 0, time.UTC),
+			End:   time.Date(2024, 3, 25, 15, 0, 0, 0, time.UTC),
+		},
+	}, nil
+}
+
 // Ensure MockCalendarService implements CalendarService
 var _ CalendarService = &MockCalendarService{}

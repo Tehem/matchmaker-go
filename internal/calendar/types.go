@@ -25,4 +25,5 @@ type Event struct {
 type CalendarService interface {
 	GetFreeSlots(ctx context.Context, email string, startTime, endTime time.Time, events []*Event) ([]TimeSlot, error)
 	CreateEvent(ctx context.Context, email string, event *Event) error
+	GetBusySlots(ctx context.Context, email string, startTime, endTime time.Time) ([]TimeSlot, error)
 }

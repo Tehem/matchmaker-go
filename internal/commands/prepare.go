@@ -9,6 +9,7 @@ import (
 	"matchmaker/internal/config"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -38,22 +39,44 @@ for each potential reviewer and create an output file 'problem.yml'.`,
 
 		// Calculate target week
 		targetWeek := calculateTargetWeek(weekShift)
-		slog.Info("Preparing for week", "week", targetWeek.Format("2006-01-02"))
+		slog.Info("Preparing for week", "firstDay", targetWeek.Format("2006-01-02"), "lastDay", targetWeek.AddDate(0, 0, 6).Format("2006-01-02"))
 
 		// Load people configuration
 		people, err := config.LoadPeople("persons.yml")
 		if err != nil {
 			return fmt.Errorf("failed to load people configuration: %w", err)
 		}
+		slog.Info("Loaded people configuration", "people", len(people))
 
 		// Get free slots for each person
 		for _, person := range people {
-			slots, err := calendarService.GetFreeSlots(ctx, person.Email, targetWeek, targetWeek.AddDate(0, 0, 7), nil)
+			// Get busy slots for the person
+			busySlots, err := calendarService.GetBusySlots(ctx, person.Email, targetWeek, targetWeek.AddDate(0, 0, 7))
+			if err != nil {
+				slog.Error("Failed to get busy slots", "person", person.Email, "error", err)
+				continue
+			}
+			slog.Info("Busy slots", "person", person.Email, "busySlots", len(busySlots))
+			outputSlots("Busy", busySlots)
+
+			// Convert busy slots to events
+			busyEvents := make([]*calendar.Event, len(busySlots))
+			for i, slot := range busySlots {
+				busyEvents[i] = &calendar.Event{
+					Start: slot.Start,
+					End:   slot.End,
+				}
+			}
+
+			// Get free slots using the busy events
+			slots, err := calendarService.GetFreeSlots(ctx, person.Email, targetWeek, targetWeek.AddDate(0, 0, 7), busyEvents)
 			if err != nil {
 				slog.Error("Failed to get free slots", "person", person.Email, "error", err)
 				continue
 			}
 			person.FreeSlots = slots
+			slog.Info("Free slots", "person", person.Email, "freeSlots", len(slots))
+			outputSlots("Free", slots)
 		}
 
 		// Save problem configuration
@@ -70,6 +93,18 @@ func init() {
 	RootCmd.AddCommand(PrepareCmd)
 
 	PrepareCmd.Flags().IntVarP(&weekShift, "week-shift", "w", 0, "Number of weeks to shift from current week (0 = next week)")
+}
+
+func outputSlots(prefix string, slots []calendar.TimeSlot) {
+	// use correct timezone
+	loc, err := time.LoadLocation(viper.GetString("workingHours.timezone"))
+	if err != nil {
+		slog.Error("Failed to load location", "error", err)
+		return
+	}
+	for _, slot := range slots {
+		slog.Info(prefix, "from", slot.Start.In(loc).Format("2006-01-02 15:04"), "to", slot.End.In(loc).Format("2006-01-02 15:04"))
+	}
 }
 
 // calculateTargetWeek calculates the target week based on the current time and week shift

@@ -131,3 +131,39 @@ func addOrganizerAsAttendee(event *calendar.Event, organizerEmail string) {
 func (s *Service) insertEvent(ctx context.Context, email string, event *calendar.Event) (*calendar.Event, error) {
 	return s.service.Events.Insert(email, event).Context(ctx).Do()
 }
+
+// GetBusySlots retrieves busy time slots for a given email and time range
+func (s *Service) GetBusySlots(ctx context.Context, email string, startTime, endTime time.Time) ([]TimeSlot, error) {
+	// Create FreeBusy request
+	freeBusyRequest := &calendar.FreeBusyRequest{
+		TimeMin: startTime.Format(time.RFC3339),
+		TimeMax: endTime.Format(time.RFC3339),
+		Items: []*calendar.FreeBusyRequestItem{
+			{Id: email},
+		},
+	}
+
+	// Execute FreeBusy query
+	freeBusyResponse, err := s.service.Freebusy.Query(freeBusyRequest).Context(ctx).Do()
+	if err != nil {
+		return nil, fmt.Errorf("failed to query free/busy: %w", err)
+	}
+
+	// Extract busy slots from response
+	busySlots := make([]TimeSlot, 0)
+	if calendarBusy, ok := freeBusyResponse.Calendars[email]; ok {
+		for _, busy := range calendarBusy.Busy {
+			start, err := time.Parse(time.RFC3339, busy.Start)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse busy start time: %w", err)
+			}
+			end, err := time.Parse(time.RFC3339, busy.End)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse busy end time: %w", err)
+			}
+			busySlots = append(busySlots, TimeSlot{Start: start, End: end})
+		}
+	}
+
+	return busySlots, nil
+}
