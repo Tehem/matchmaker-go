@@ -15,6 +15,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/option"
 )
 
 func GetGoogleCalendarService() (*calendar.Service, error) {
@@ -31,8 +32,11 @@ func GetGoogleCalendarService() (*calendar.Service, error) {
 	}
 
 	client := GetHttpClient(ctx, config)
+	if client == nil {
+		return nil, fmt.Errorf("failed to create HTTP client")
+	}
 
-	srv, err := calendar.New(client)
+	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
 		return nil, err
 	}
