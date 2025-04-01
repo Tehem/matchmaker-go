@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -92,20 +95,52 @@ func init() {
 // getTokenFromWeb uses Config to request a Token.
 // It returns the retrieved Token.
 func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	fmt.Printf("Go to the following link in your browser then type the "+
-		"authorization code: \n%v\n", authURL)
+	ch := make(chan string)
+	randState := fmt.Sprintf("st%d", time.Now().UnixNano())
+	ts := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/favicon.ico" {
+			http.Error(rw, "", 404)
+			return
+		}
+		if req.FormValue("state") != randState {
+			fmt.Printf("State doesn't match: req = %#v", req)
+			http.Error(rw, "", 500)
+			return
+		}
+		if code := req.FormValue("code"); code != "" {
+			fmt.Fprintf(rw, "<h1>Success</h1>Authorized.")
+			rw.(http.Flusher).Flush()
+			ch <- code
+			return
+		}
+		fmt.Println("no code")
+		http.Error(rw, "", 500)
+	}))
+	defer ts.Close()
 
-	var authCode string
-	if _, err := fmt.Scan(&authCode); err != nil {
-		return nil, fmt.Errorf("unable to read authorization code: %w", err)
-	}
+	config.RedirectURL = ts.URL
+	authURL := config.AuthCodeURL(randState)
+	go openURL(authURL)
+	fmt.Printf("Authorize this app at: %s", authURL)
+	code := <-ch
+	fmt.Printf("Got code: %s", code)
 
-	tok, err := config.Exchange(context.TODO(), authCode)
+	tok, err := config.Exchange(context.TODO(), code)
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve token from web: %w", err)
+		return nil, fmt.Errorf("token exchange error: %v", err)
 	}
 	return tok, nil
+}
+
+func openURL(url string) {
+	try := []string{"xdg-open", "google-chrome", "open"}
+	for _, bin := range try {
+		err := exec.Command(bin, url).Run()
+		if err == nil {
+			return
+		}
+	}
+	fmt.Println("Error opening URL in browser.")
 }
 
 // loadToken loads the OAuth2 token from a file
