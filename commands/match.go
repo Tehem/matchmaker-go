@@ -2,14 +2,14 @@ package commands
 
 import (
 	"flag"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"log"
 	"matchmaker/libs"
 	"matchmaker/util"
 	"os"
 	"runtime/pprof"
+
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
 var cpuprofile string
@@ -36,13 +36,13 @@ file with reviewers tuples and planned slots.`,
 			defer pprof.StopCPUProfile()
 		}
 
-		yml, err := ioutil.ReadFile("./problem.yml")
+		yml, err := os.ReadFile("./problem.yml")
 		util.PanicOnError(err, "Can't yml problem description")
 		problem, err := libs.LoadProblem(yml)
 		solution := libs.Solve(problem)
 
 		planYml, _ := yaml.Marshal(solution)
-		writeErr := ioutil.WriteFile("./planning.yml", planYml, os.FileMode(0644))
+		writeErr := os.WriteFile("./planning.yml", planYml, os.FileMode(0644))
 		util.PanicOnError(writeErr, "Can't yml planning result")
 	},
 }

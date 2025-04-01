@@ -1,24 +1,23 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/spf13/cobra"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/calendar/v3"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"time"
 
-	"context"
-	"os/user"
+	"github.com/spf13/cobra"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
@@ -134,7 +133,7 @@ var tokenCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 
 		//ctx := context.Background()
-		b, err := ioutil.ReadFile("client_secret.json")
+		b, err := os.ReadFile("client_secret.json")
 		if err != nil {
 			log.Fatalf("Unable to read client secret file: %v", err)
 		}

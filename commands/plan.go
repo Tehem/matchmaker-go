@@ -1,16 +1,17 @@
 package commands
 
 import (
+	"matchmaker/libs"
+	"matchmaker/libs/gcalendar"
+	"matchmaker/util"
+	"os"
+
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	logger "github.com/transcovo/go-chpr-logger"
 	"google.golang.org/api/calendar/v3"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"matchmaker/libs"
-	"matchmaker/libs/gcalendar"
-	"matchmaker/util"
 )
 
 func LoadPlan(yml []byte) (*libs.Solution, error) {
@@ -32,7 +33,7 @@ var planCmd = &cobra.Command{
 	Short: "Create events in people's calendars.",
 	Long:  `Take input from the 'planning.yml' file and create session events in people's Google Calendar.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		yml, err := ioutil.ReadFile("./planning.yml")
+		yml, err := os.ReadFile("./planning.yml")
 		util.PanicOnError(err, "Can't yml problem description")
 
 		cal, err := gcalendar.GetGoogleCalendarService()

@@ -1,17 +1,17 @@
 package commands
 
 import (
-	logrus2 "github.com/sirupsen/logrus"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	logger "github.com/transcovo/go-chpr-logger"
-	"google.golang.org/api/calendar/v3"
-	"io/ioutil"
 	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/util"
 	"os"
 	"time"
+
+	logrus2 "github.com/sirupsen/logrus"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	logger "github.com/transcovo/go-chpr-logger"
+	"google.golang.org/api/calendar/v3"
 )
 
 func FirstDayOfISOWeek(weekShift int) time.Time {
@@ -170,7 +170,7 @@ reviewer and create an output file 'problem.yml'.`,
 
 		problem := loadProblem(weekShift)
 		yml, _ := problem.ToYaml()
-		err := ioutil.WriteFile("./problem.yml", yml, os.FileMode(0644))
+		err := os.WriteFile("./problem.yml", yml, os.FileMode(0644))
 		util.PanicOnError(err, "Can't yml problem file")
 	},
 }

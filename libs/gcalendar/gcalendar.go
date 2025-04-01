@@ -3,11 +3,6 @@ package gcalendar
 import (
 	"encoding/json"
 	"fmt"
-	"golang.org/x/net/context"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
-	"google.golang.org/api/calendar/v3"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -15,12 +10,17 @@ import (
 	"os/user"
 	"path/filepath"
 	"time"
+
+	"golang.org/x/net/context"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/calendar/v3"
 )
 
 func GetGoogleCalendarService() (*calendar.Service, error) {
 	ctx := context.Background()
 
-	b, err := ioutil.ReadFile("client_secret.json")
+	b, err := os.ReadFile("client_secret.json")
 	if err != nil {
 		return nil, err
 	}
