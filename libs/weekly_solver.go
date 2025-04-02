@@ -7,12 +7,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// Tuple represents a pair of people
-type Tuple struct {
-	Person1 *Person
-	Person2 *Person
-}
-
 // WeeklySolveResult contains the result of the weekly solve operation
 type WeeklySolveResult struct {
 	Solution        *Solution
