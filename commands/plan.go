@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/util"
@@ -24,17 +25,79 @@ func LoadPlan(yml []byte) (*libs.Solution, error) {
 	return solution, nil
 }
 
+func fileExists(filename string) bool {
+	_, err := os.Stat(filename)
+	return err == nil
+}
+
+func choosePlanningFile(args []string) (string, error) {
+	// If a file is specified as an argument, use it
+	if len(args) > 0 {
+		if !fileExists(args[0]) {
+			return "", fmt.Errorf("specified file '%s' does not exist", args[0])
+		}
+		return args[0], nil
+	}
+
+	// Check which files exist
+	planningExists := fileExists("./planning.yml")
+	weeklyPlanningExists := fileExists("./weekly-planning.yml")
+
+	// If neither file exists
+	if !planningExists && !weeklyPlanningExists {
+		return "", fmt.Errorf("no planning files found (planning.yml or weekly-planning.yml)")
+	}
+
+	// If only one file exists, use it
+	if planningExists && !weeklyPlanningExists {
+		return "./planning.yml", nil
+	}
+	if !planningExists && weeklyPlanningExists {
+		return "./weekly-planning.yml", nil
+	}
+
+	// Both files exist, ask user which one to use
+	fmt.Println("Multiple planning files found. Please choose which one to use:")
+	fmt.Println("1) planning.yml")
+	fmt.Println("2) weekly-planning.yml")
+
+	var choice string
+	fmt.Print("Enter choice (1 or 2): ")
+	fmt.Scanln(&choice)
+
+	switch choice {
+	case "1":
+		return "./planning.yml", nil
+	case "2":
+		return "./weekly-planning.yml", nil
+	default:
+		return "", fmt.Errorf("invalid choice: %s", choice)
+	}
+}
+
 func init() {
 	rootCmd.AddCommand(planCmd)
 }
 
 var planCmd = &cobra.Command{
-	Use:   "plan",
+	Use:   "plan [file]",
 	Short: "Create events in people's calendars.",
-	Long:  `Take input from the 'planning.yml' file and create session events in people's Google Calendar.`,
+	Long: `Take input from a planning file (planning.yml or weekly-planning.yml) and create session events in people's Google Calendar.
+If no file is specified, the command will:
+- Use planning.yml if it's the only file present
+- Use weekly-planning.yml if it's the only file present
+- Ask which file to use if both are present`,
+	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		yml, err := os.ReadFile("./planning.yml")
-		util.PanicOnError(err, "Can't yml problem description")
+		planningFile, err := choosePlanningFile(args)
+		util.PanicOnError(err, "Failed to determine planning file")
+
+		util.LogInfo("Using planning file", map[string]interface{}{
+			"file": planningFile,
+		})
+
+		yml, err := os.ReadFile(planningFile)
+		util.PanicOnError(err, "Can't read planning file")
 
 		cal, err := gcalendar.GetGoogleCalendarService()
 		util.PanicOnError(err, "Can't get gcalendar client")
