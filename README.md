@@ -74,7 +74,7 @@ Then retry the command to create the token.
 
 ## Setup
 
-You need to create/retrieve a group file `groups/group.yml` file containing people configuration for review.
+You need to create/retrieve a group file `groups/group.yml` containing people configuration for review.
 Format example:
 ```yaml
 - email: john.doe@example.com
