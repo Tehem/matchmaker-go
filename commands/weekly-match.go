@@ -2,6 +2,7 @@ package commands
 
 import (
 	"matchmaker/libs"
+	"matchmaker/libs/gcalendar"
 	"matchmaker/util"
 	"math/rand"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"google.golang.org/api/calendar/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -28,9 +30,9 @@ func init() {
 
 var weeklyMatchCmd = &cobra.Command{
 	Use:   "weekly-match [group-file]",
-	Short: "Create random pairs of people with no common skills.",
+	Short: "Create random pairs of people with no common skills and schedule sessions across weeks.",
 	Long: `Create random pairs of people from a group file, ensuring that paired people have no common skills.
-The output is a 'tuples.yml' file containing the pairs and any unpaired people.`,
+Then schedule pairing sessions for each tuple across consecutive weeks. The output is a 'weekly-planning.yml' file.`,
 	Args: cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		groupFile := "group.yml"
@@ -116,16 +118,123 @@ The output is a 'tuples.yml' file containing the pairs and any unpaired people.`
 			}
 		}
 
-		// Output the tuples to a file
-		yml, err := yaml.Marshal(tuples)
-		util.PanicOnError(err, "Can't marshal tuples")
-		writeErr := os.WriteFile("./tuples.yml", yml, os.FileMode(0644))
-		util.PanicOnError(writeErr, "Can't write tuples result")
+		// Get Google Calendar service
+		cal, err := gcalendar.GetGoogleCalendarService()
+		util.PanicOnError(err, "Can't get Google Calendar client")
+		util.LogInfo("Connected to Google Calendar", nil)
+
+		// Create a combined solution for all tuples
+		combinedSolution := &libs.Solution{
+			Sessions: make([]*libs.ReviewSession, 0),
+		}
+
+		// For each tuple, create a session for a different week
+		for i, tuple := range tuples.Pairs {
+			weekShift := i // First tuple uses current week, second uses next week, etc.
+
+			util.LogInfo("Processing tuple for week", map[string]interface{}{
+				"tupleIndex": i,
+				"weekShift":  weekShift,
+				"person1":    tuple.Person1.Email,
+				"person2":    tuple.Person2.Email,
+			})
+
+			// Get the beginning of the target week
+			beginOfWeek := FirstDayOfISOWeek(weekShift)
+			util.LogInfo("Planning for week", map[string]interface{}{
+				"weekFirstDay": beginOfWeek,
+			})
+
+			// Get work ranges for the week
+			workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
+
+			// Get busy times for both people in the tuple
+			busyTimes := []*libs.BusyTime{}
+			tuplePeople := []*libs.Person{tuple.Person1, tuple.Person2}
+
+			for _, person := range tuplePeople {
+				util.LogInfo("Loading busy detail", map[string]interface{}{
+					"person": person.Email,
+				})
+
+				for _, workRange := range workRanges {
+					util.LogInfo("Loading busy detail on range", map[string]interface{}{
+						"start": workRange.Start,
+						"end":   workRange.End,
+					})
+
+					result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
+						TimeMin: gcalendar.FormatTime(workRange.Start),
+						TimeMax: gcalendar.FormatTime(workRange.End),
+						Items: []*calendar.FreeBusyRequestItem{
+							{
+								Id: person.Email,
+							},
+						},
+					}).Do()
+					util.PanicOnError(err, "Can't retrieve free/busy data for "+person.Email)
+
+					busyTimePeriods := result.Calendars[person.Email].Busy
+					util.LogInfo("Person busy times", map[string]interface{}{
+						"person": person.Email,
+					})
+
+					for _, busyTimePeriod := range busyTimePeriods {
+						util.LogInfo("Busy time period", map[string]interface{}{
+							"start": busyTimePeriod.Start,
+							"end":   busyTimePeriod.End,
+						})
+						busyTimes = append(busyTimes, &libs.BusyTime{
+							Person: person,
+							Range: &libs.Range{
+								Start: parseTime(busyTimePeriod.Start),
+								End:   parseTime(busyTimePeriod.End),
+							},
+						})
+					}
+				}
+			}
+
+			// Create a problem for this tuple
+			problem := &libs.Problem{
+				People:         tuplePeople,
+				WorkRanges:     workRanges,
+				BusyTimes:      busyTimes,
+				TargetCoverage: 0, // We don't need to cover all time slots
+			}
+
+			// Use our custom solver to find a session for this tuple
+			solution := libs.WeeklySolve(problem)
+
+			// Add the sessions to our combined solution
+			if len(solution.Sessions) > 0 {
+				// Take the first session (we only need one per tuple)
+				combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Sessions[0])
+				util.LogInfo("Added session for tuple", map[string]interface{}{
+					"tupleIndex":   i,
+					"weekShift":    weekShift,
+					"sessionStart": solution.Sessions[0].Start().Format(time.RFC3339),
+					"sessionEnd":   solution.Sessions[0].End().Format(time.RFC3339),
+				})
+			} else {
+				util.LogInfo("No session found for tuple", map[string]interface{}{
+					"tupleIndex": i,
+					"weekShift":  weekShift,
+				})
+			}
+		}
+
+		// Output the combined solution to a file
+		yml, err := yaml.Marshal(combinedSolution)
+		util.PanicOnError(err, "Can't marshal solution")
+		writeErr := os.WriteFile("./weekly-planning.yml", yml, os.FileMode(0644))
+		util.PanicOnError(writeErr, "Can't write weekly planning result")
 
 		util.LogInfo("Weekly match process completed", map[string]interface{}{
 			"totalPairs":     len(tuples.Pairs),
 			"unpairedPeople": len(tuples.UnpairedPeople),
-			"outputFile":     "./tuples.yml",
+			"totalSessions":  len(combinedSolution.Sessions),
+			"outputFile":     "./weekly-planning.yml",
 		})
 	},
 }
