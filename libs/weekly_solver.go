@@ -7,8 +7,21 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Tuple represents a pair of people
+type Tuple struct {
+	Person1 *Person
+	Person2 *Person
+}
+
+// WeeklySolveResult contains the result of the weekly solve operation
+type WeeklySolveResult struct {
+	Solution        *Solution
+	UnmatchedPeople []*Person
+	UnmatchedTuples []Tuple
+}
+
 // WeeklySolve finds a single session for a tuple of people in a specific week
-func WeeklySolve(problem *Problem) *Solution {
+func WeeklySolve(problem *Problem) *WeeklySolveResult {
 	// Generate squads for the tuple
 	squads := generateSquadsForTuple(problem.People, problem.BusyTimes)
 
@@ -52,7 +65,24 @@ func WeeklySolve(problem *Problem) *Solution {
 		solution.Sessions = append(solution.Sessions, bestSession)
 	}
 
-	return solution
+	// Create the result
+	result := &WeeklySolveResult{
+		Solution:        solution,
+		UnmatchedPeople: make([]*Person, 0),
+		UnmatchedTuples: make([]Tuple, 0),
+	}
+
+	// If no session was found, add the tuple to unmatched tuples
+	if bestSession == nil && len(problem.People) == 2 {
+		// Create a tuple from the two people
+		tuple := Tuple{
+			Person1: problem.People[0],
+			Person2: problem.People[1],
+		}
+		result.UnmatchedTuples = append(result.UnmatchedTuples, tuple)
+	}
+
+	return result
 }
 
 // generateSquadsForTuple creates squads for a specific tuple of people

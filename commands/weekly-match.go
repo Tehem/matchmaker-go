@@ -128,6 +128,13 @@ Then schedule pairing sessions for each tuple across consecutive weeks. The outp
 			Sessions: make([]*libs.ReviewSession, 0),
 		}
 
+		// Track all unmatched tuples and people
+		allUnmatchedTuples := make([]libs.Tuple, 0)
+		allUnmatchedPeople := make([]*libs.Person, 0)
+
+		// Initialize allUnmatchedPeople with tuples.UnpairedPeople
+		allUnmatchedPeople = append(allUnmatchedPeople, tuples.UnpairedPeople...)
+
 		// For each tuple, create a session for a different week
 		for i, tuple := range tuples.Pairs {
 			weekShift := i // First tuple uses current week, second uses next week, etc.
@@ -207,19 +214,73 @@ Then schedule pairing sessions for each tuple across consecutive weeks. The outp
 			solution := libs.WeeklySolve(problem)
 
 			// Add the sessions to our combined solution
-			if len(solution.Sessions) > 0 {
+			if len(solution.Solution.Sessions) > 0 {
 				// Take the first session (we only need one per tuple)
-				combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Sessions[0])
+				combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Solution.Sessions[0])
 				util.LogInfo("Added session for tuple", map[string]interface{}{
 					"tupleIndex":   i,
 					"weekShift":    weekShift,
-					"sessionStart": solution.Sessions[0].Start().Format(time.RFC3339),
-					"sessionEnd":   solution.Sessions[0].End().Format(time.RFC3339),
+					"sessionStart": solution.Solution.Sessions[0].Start().Format(time.RFC3339),
+					"sessionEnd":   solution.Solution.Sessions[0].End().Format(time.RFC3339),
 				})
 			} else {
 				util.LogInfo("No session found for tuple", map[string]interface{}{
 					"tupleIndex": i,
 					"weekShift":  weekShift,
+				})
+
+				// Add the tuple to unmatched tuples if no session was found
+				if len(solution.UnmatchedTuples) > 0 {
+					allUnmatchedTuples = append(allUnmatchedTuples, solution.UnmatchedTuples[0])
+					allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person1)
+					allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person2)
+				}
+			}
+		}
+
+		// Print summary of all sessions
+		util.LogInfo("Weekly match process completed", map[string]interface{}{
+			"totalPairs":      len(tuples.Pairs),
+			"unpairedPeople":  len(tuples.UnpairedPeople),
+			"totalSessions":   len(combinedSolution.Sessions),
+			"unmatchedTuples": len(allUnmatchedTuples),
+			"outputFile":      "./weekly-planning.yml",
+		})
+
+		// Print all sessions
+		util.LogInfo("Generated weekly sessions", map[string]interface{}{
+			"count": len(combinedSolution.Sessions),
+		})
+		for _, session := range combinedSolution.Sessions {
+			util.LogInfo("Weekly session", map[string]interface{}{
+				"person1": session.Reviewers.People[0].Email,
+				"person2": session.Reviewers.People[1].Email,
+				"start":   session.Range.Start.Format(time.RFC3339),
+				"end":     session.Range.End.Format(time.RFC3339),
+			})
+		}
+
+		// Print unmatched tuples
+		if len(allUnmatchedTuples) > 0 {
+			util.LogInfo("Unmatched tuples", map[string]interface{}{
+				"count": len(allUnmatchedTuples),
+			})
+			for _, tuple := range allUnmatchedTuples {
+				util.LogInfo("Unmatched tuple", map[string]interface{}{
+					"person1": tuple.Person1.Email,
+					"person2": tuple.Person2.Email,
+				})
+			}
+		}
+
+		// Print unpaired people
+		if len(allUnmatchedPeople) > 0 {
+			util.LogInfo("Unpaired people", map[string]interface{}{
+				"count": len(allUnmatchedPeople),
+			})
+			for _, person := range allUnmatchedPeople {
+				util.LogInfo("Unpaired person", map[string]interface{}{
+					"email": person.Email,
 				})
 			}
 		}
@@ -229,12 +290,5 @@ Then schedule pairing sessions for each tuple across consecutive weeks. The outp
 		util.PanicOnError(err, "Can't marshal solution")
 		writeErr := os.WriteFile("./weekly-planning.yml", yml, os.FileMode(0644))
 		util.PanicOnError(writeErr, "Can't write weekly planning result")
-
-		util.LogInfo("Weekly match process completed", map[string]interface{}{
-			"totalPairs":     len(tuples.Pairs),
-			"unpairedPeople": len(tuples.UnpairedPeople),
-			"totalSessions":  len(combinedSolution.Sessions),
-			"outputFile":     "./weekly-planning.yml",
-		})
 	},
 }
