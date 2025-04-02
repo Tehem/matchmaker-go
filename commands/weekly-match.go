@@ -44,251 +44,227 @@ Then schedule pairing sessions for each tuple across consecutive weeks. The outp
 			"groupFile": groupFile,
 		})
 
-		// Load people from group file
-		groupPath := filepath.Join("groups", groupFile)
-		people, err := libs.LoadPersons(groupPath)
-		util.PanicOnError(err, "Cannot load people file")
-		util.LogInfo("People file loaded", map[string]interface{}{
-			"count": len(people),
-			"file":  groupPath,
-		})
-
-		// Filter out people with maxSessionsPerWeek = 0
-		availablePeople := make([]*libs.Person, 0)
-		for _, person := range people {
-			if person.MaxSessionsPerWeek > 0 {
-				availablePeople = append(availablePeople, person)
-			}
-		}
-		util.LogInfo("Filtered available people", map[string]interface{}{
-			"totalPeople":     len(people),
-			"availablePeople": len(availablePeople),
-		})
+		// Load and filter available people
+		availablePeople := loadAndFilterPeople(groupFile)
 
 		// Create random pairs
-		tuples := Tuples{
-			Pairs:          make([]Tuple, 0),
-			UnpairedPeople: make([]*libs.Person, 0),
-		}
-
-		// Create a local random generator
-		r := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-		// Shuffle the people array
-		util.LogInfo("Shuffling people for random pairing", nil)
-		r.Shuffle(len(availablePeople), func(i, j int) {
-			availablePeople[i], availablePeople[j] = availablePeople[j], availablePeople[i]
-		})
-
-		// Create pairs with no common skills
-		used := make(map[*libs.Person]bool)
-		for i, person1 := range availablePeople {
-			if used[person1] {
-				continue
-			}
-
-			// Find a person with no common skills
-			for j := i + 1; j < len(availablePeople); j++ {
-				person2 := availablePeople[j]
-				if used[person2] {
-					continue
-				}
-
-				// Check if they have no common skills
-				commonSkills := util.Intersection(person1.Skills, person2.Skills)
-				if len(commonSkills) == 0 {
-					tuples.Pairs = append(tuples.Pairs, Tuple{
-						Person1: person1,
-						Person2: person2,
-					})
-					used[person1] = true
-					used[person2] = true
-					util.LogInfo("Created pair", map[string]interface{}{
-						"person1": person1.Email,
-						"person2": person2.Email,
-					})
-					break
-				}
-			}
-			if !used[person1] {
-				tuples.UnpairedPeople = append(tuples.UnpairedPeople, person1)
-				util.LogInfo("Person could not be paired", map[string]interface{}{
-					"email": person1.Email,
-				})
-			}
-		}
+		tuples := createRandomPairs(availablePeople)
 
 		// Get Google Calendar service
 		cal, err := gcalendar.GetGoogleCalendarService()
 		util.PanicOnError(err, "Can't get Google Calendar client")
 		util.LogInfo("Connected to Google Calendar", nil)
 
-		// Create a combined solution for all tuples
-		combinedSolution := &libs.Solution{
-			Sessions: make([]*libs.ReviewSession, 0),
+		// Process tuples and create sessions
+		combinedSolution, allUnmatchedTuples, allUnmatchedPeople := processTuplesAndCreateSessions(tuples, cal)
+
+		// Output results
+		outputResults(combinedSolution, tuples, allUnmatchedTuples, allUnmatchedPeople)
+	},
+}
+
+func loadAndFilterPeople(groupFile string) []*libs.Person {
+	groupPath := filepath.Join("groups", groupFile)
+	people, err := libs.LoadPersons(groupPath)
+	util.PanicOnError(err, "Cannot load people file")
+	util.LogInfo("People file loaded", map[string]interface{}{
+		"count": len(people),
+		"file":  groupPath,
+	})
+
+	// Filter out people with maxSessionsPerWeek = 0
+	availablePeople := make([]*libs.Person, 0)
+	for _, person := range people {
+		if person.MaxSessionsPerWeek > 0 {
+			availablePeople = append(availablePeople, person)
+		}
+	}
+	util.LogInfo("Filtered available people", map[string]interface{}{
+		"totalPeople":     len(people),
+		"availablePeople": len(availablePeople),
+	})
+
+	return availablePeople
+}
+
+func createRandomPairs(availablePeople []*libs.Person) Tuples {
+	tuples := Tuples{
+		Pairs:          make([]Tuple, 0),
+		UnpairedPeople: make([]*libs.Person, 0),
+	}
+
+	// Create a local random generator
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Shuffle the people array
+	util.LogInfo("Shuffling people for random pairing", nil)
+	r.Shuffle(len(availablePeople), func(i, j int) {
+		availablePeople[i], availablePeople[j] = availablePeople[j], availablePeople[i]
+	})
+
+	// Create pairs with no common skills
+	used := make(map[*libs.Person]bool)
+	for i, person1 := range availablePeople {
+		if used[person1] {
+			continue
 		}
 
-		// Track all unmatched tuples and people
-		allUnmatchedTuples := make([]libs.Tuple, 0)
-		allUnmatchedPeople := make([]*libs.Person, 0)
+		// Find a person with no common skills
+		for j := i + 1; j < len(availablePeople); j++ {
+			person2 := availablePeople[j]
+			if used[person2] {
+				continue
+			}
 
-		// Initialize allUnmatchedPeople with tuples.UnpairedPeople
-		allUnmatchedPeople = append(allUnmatchedPeople, tuples.UnpairedPeople...)
+			// Check if they have no common skills
+			commonSkills := util.Intersection(person1.Skills, person2.Skills)
+			if len(commonSkills) == 0 {
+				tuples.Pairs = append(tuples.Pairs, Tuple{
+					Person1: person1,
+					Person2: person2,
+				})
+				used[person1] = true
+				used[person2] = true
+				util.LogInfo("Created pair", map[string]interface{}{
+					"person1": person1.Email,
+					"person2": person2.Email,
+				})
+				break
+			}
+		}
+		if !used[person1] {
+			tuples.UnpairedPeople = append(tuples.UnpairedPeople, person1)
+			util.LogInfo("Person could not be paired", map[string]interface{}{
+				"email": person1.Email,
+			})
+		}
+	}
 
-		// For each tuple, create a session for a different week
-		for i, tuple := range tuples.Pairs {
-			weekShift := i // First tuple uses current week, second uses next week, etc.
+	return tuples
+}
 
-			util.LogInfo("Processing tuple for week", map[string]interface{}{
+func processTuplesAndCreateSessions(tuples Tuples, cal *calendar.Service) (*libs.Solution, []libs.Tuple, []*libs.Person) {
+	combinedSolution := &libs.Solution{
+		Sessions: make([]*libs.ReviewSession, 0),
+	}
+
+	allUnmatchedTuples := make([]libs.Tuple, 0)
+	allUnmatchedPeople := make([]*libs.Person, 0)
+	allUnmatchedPeople = append(allUnmatchedPeople, tuples.UnpairedPeople...)
+
+	for i, tuple := range tuples.Pairs {
+		weekShift := i
+		util.LogInfo("Processing tuple for week", map[string]interface{}{
+			"tupleIndex": i,
+			"weekShift":  weekShift,
+			"person1":    tuple.Person1.Email,
+			"person2":    tuple.Person2.Email,
+		})
+
+		beginOfWeek := FirstDayOfISOWeek(weekShift)
+		workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
+		busyTimes := getBusyTimesForTuple(tuple, workRanges, cal)
+
+		problem := &libs.Problem{
+			People:         []*libs.Person{tuple.Person1, tuple.Person2},
+			WorkRanges:     workRanges,
+			BusyTimes:      busyTimes,
+			TargetCoverage: 0,
+		}
+
+		solution := libs.WeeklySolve(problem)
+
+		if len(solution.Solution.Sessions) > 0 {
+			combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Solution.Sessions[0])
+			util.LogInfo("Added session for tuple", map[string]interface{}{
+				"tupleIndex":   i,
+				"weekShift":    weekShift,
+				"sessionStart": solution.Solution.Sessions[0].Start().Format(time.RFC3339),
+				"sessionEnd":   solution.Solution.Sessions[0].End().Format(time.RFC3339),
+			})
+		} else {
+			util.LogInfo("No session found for tuple", map[string]interface{}{
 				"tupleIndex": i,
 				"weekShift":  weekShift,
-				"person1":    tuple.Person1.Email,
-				"person2":    tuple.Person2.Email,
 			})
 
-			// Get the beginning of the target week
-			beginOfWeek := FirstDayOfISOWeek(weekShift)
-			util.LogInfo("Planning for week", map[string]interface{}{
-				"weekFirstDay": beginOfWeek,
-			})
-
-			// Get work ranges for the week
-			workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
-
-			// Get busy times for both people in the tuple
-			busyTimes := []*libs.BusyTime{}
-			tuplePeople := []*libs.Person{tuple.Person1, tuple.Person2}
-
-			for _, person := range tuplePeople {
-				util.LogInfo("Loading busy detail", map[string]interface{}{
-					"person": person.Email,
-				})
-
-				for _, workRange := range workRanges {
-					util.LogInfo("Loading busy detail on range", map[string]interface{}{
-						"start": workRange.Start,
-						"end":   workRange.End,
-					})
-
-					result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
-						TimeMin: gcalendar.FormatTime(workRange.Start),
-						TimeMax: gcalendar.FormatTime(workRange.End),
-						Items: []*calendar.FreeBusyRequestItem{
-							{
-								Id: person.Email,
-							},
-						},
-					}).Do()
-					util.PanicOnError(err, "Can't retrieve free/busy data for "+person.Email)
-
-					busyTimePeriods := result.Calendars[person.Email].Busy
-					util.LogInfo("Person busy times", map[string]interface{}{
-						"person": person.Email,
-					})
-
-					for _, busyTimePeriod := range busyTimePeriods {
-						util.LogInfo("Busy time period", map[string]interface{}{
-							"start": busyTimePeriod.Start,
-							"end":   busyTimePeriod.End,
-						})
-						busyTimes = append(busyTimes, &libs.BusyTime{
-							Person: person,
-							Range: &libs.Range{
-								Start: parseTime(busyTimePeriod.Start),
-								End:   parseTime(busyTimePeriod.End),
-							},
-						})
-					}
-				}
-			}
-
-			// Create a problem for this tuple
-			problem := &libs.Problem{
-				People:         tuplePeople,
-				WorkRanges:     workRanges,
-				BusyTimes:      busyTimes,
-				TargetCoverage: 0, // We don't need to cover all time slots
-			}
-
-			// Use our custom solver to find a session for this tuple
-			solution := libs.WeeklySolve(problem)
-
-			// Add the sessions to our combined solution
-			if len(solution.Solution.Sessions) > 0 {
-				// Take the first session (we only need one per tuple)
-				combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Solution.Sessions[0])
-				util.LogInfo("Added session for tuple", map[string]interface{}{
-					"tupleIndex":   i,
-					"weekShift":    weekShift,
-					"sessionStart": solution.Solution.Sessions[0].Start().Format(time.RFC3339),
-					"sessionEnd":   solution.Solution.Sessions[0].End().Format(time.RFC3339),
-				})
-			} else {
-				util.LogInfo("No session found for tuple", map[string]interface{}{
-					"tupleIndex": i,
-					"weekShift":  weekShift,
-				})
-
-				// Add the tuple to unmatched tuples if no session was found
-				if len(solution.UnmatchedTuples) > 0 {
-					allUnmatchedTuples = append(allUnmatchedTuples, solution.UnmatchedTuples[0])
-					allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person1)
-					allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person2)
-				}
+			if len(solution.UnmatchedTuples) > 0 {
+				allUnmatchedTuples = append(allUnmatchedTuples, solution.UnmatchedTuples[0])
+				allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person1)
+				allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person2)
 			}
 		}
+	}
 
-		// Print summary of all sessions
-		util.LogInfo("Weekly match process completed", map[string]interface{}{
-			"totalPairs":      len(tuples.Pairs),
-			"unpairedPeople":  len(tuples.UnpairedPeople),
-			"totalSessions":   len(combinedSolution.Sessions),
-			"unmatchedTuples": len(allUnmatchedTuples),
-			"outputFile":      "./weekly-planning.yml",
+	return combinedSolution, allUnmatchedTuples, allUnmatchedPeople
+}
+
+func getBusyTimesForTuple(tuple Tuple, workRanges []*libs.Range, cal *calendar.Service) []*libs.BusyTime {
+	busyTimes := []*libs.BusyTime{}
+	tuplePeople := []*libs.Person{tuple.Person1, tuple.Person2}
+
+	for _, person := range tuplePeople {
+		for _, workRange := range workRanges {
+			personBusyTimes, err := gcalendar.GetBusyTimes(cal, person, workRange)
+			util.PanicOnError(err, "Failed to get busy times")
+			busyTimes = append(busyTimes, personBusyTimes...)
+		}
+	}
+
+	return busyTimes
+}
+
+func outputResults(combinedSolution *libs.Solution, tuples Tuples, allUnmatchedTuples []libs.Tuple, allUnmatchedPeople []*libs.Person) {
+	// Print summary of all sessions
+	util.LogInfo("Weekly match process completed", map[string]interface{}{
+		"totalPairs":      len(tuples.Pairs),
+		"unpairedPeople":  len(tuples.UnpairedPeople),
+		"totalSessions":   len(combinedSolution.Sessions),
+		"unmatchedTuples": len(allUnmatchedTuples),
+		"outputFile":      "./weekly-planning.yml",
+	})
+
+	// Print all sessions
+	util.LogInfo("Generated weekly sessions", map[string]interface{}{
+		"count": len(combinedSolution.Sessions),
+	})
+	for _, session := range combinedSolution.Sessions {
+		util.LogInfo("Weekly session", map[string]interface{}{
+			"person1": session.Reviewers.People[0].Email,
+			"person2": session.Reviewers.People[1].Email,
+			"start":   session.Range.Start.Format(time.RFC3339),
+			"end":     session.Range.End.Format(time.RFC3339),
 		})
+	}
 
-		// Print all sessions
-		util.LogInfo("Generated weekly sessions", map[string]interface{}{
-			"count": len(combinedSolution.Sessions),
+	// Print unmatched tuples
+	if len(allUnmatchedTuples) > 0 {
+		util.LogInfo("Unmatched tuples", map[string]interface{}{
+			"count": len(allUnmatchedTuples),
 		})
-		for _, session := range combinedSolution.Sessions {
-			util.LogInfo("Weekly session", map[string]interface{}{
-				"person1": session.Reviewers.People[0].Email,
-				"person2": session.Reviewers.People[1].Email,
-				"start":   session.Range.Start.Format(time.RFC3339),
-				"end":     session.Range.End.Format(time.RFC3339),
+		for _, tuple := range allUnmatchedTuples {
+			util.LogInfo("Unmatched tuple", map[string]interface{}{
+				"person1": tuple.Person1.Email,
+				"person2": tuple.Person2.Email,
 			})
 		}
+	}
 
-		// Print unmatched tuples
-		if len(allUnmatchedTuples) > 0 {
-			util.LogInfo("Unmatched tuples", map[string]interface{}{
-				"count": len(allUnmatchedTuples),
+	// Print unpaired people
+	if len(allUnmatchedPeople) > 0 {
+		util.LogInfo("Unpaired people", map[string]interface{}{
+			"count": len(allUnmatchedPeople),
+		})
+		for _, person := range allUnmatchedPeople {
+			util.LogInfo("Unpaired person", map[string]interface{}{
+				"email": person.Email,
 			})
-			for _, tuple := range allUnmatchedTuples {
-				util.LogInfo("Unmatched tuple", map[string]interface{}{
-					"person1": tuple.Person1.Email,
-					"person2": tuple.Person2.Email,
-				})
-			}
 		}
+	}
 
-		// Print unpaired people
-		if len(allUnmatchedPeople) > 0 {
-			util.LogInfo("Unpaired people", map[string]interface{}{
-				"count": len(allUnmatchedPeople),
-			})
-			for _, person := range allUnmatchedPeople {
-				util.LogInfo("Unpaired person", map[string]interface{}{
-					"email": person.Email,
-				})
-			}
-		}
-
-		// Output the combined solution to a file
-		yml, err := yaml.Marshal(combinedSolution)
-		util.PanicOnError(err, "Can't marshal solution")
-		writeErr := os.WriteFile("./weekly-planning.yml", yml, os.FileMode(0644))
-		util.PanicOnError(writeErr, "Can't write weekly planning result")
-	},
+	// Output the combined solution to a file
+	yml, err := yaml.Marshal(combinedSolution)
+	util.PanicOnError(err, "Can't marshal solution")
+	writeErr := os.WriteFile("./weekly-planning.yml", yml, os.FileMode(0644))
+	util.PanicOnError(writeErr, "Can't write weekly planning result")
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"google.golang.org/api/calendar/v3"
 )
 
 func FirstDayOfISOWeek(weekShift int) time.Time {
@@ -77,12 +76,6 @@ func GetWeekWorkRanges(beginOfWeek time.Time) chan *libs.Range {
 	return ranges
 }
 
-func parseTime(dateStr string) time.Time {
-	result, err := time.Parse(time.RFC3339, dateStr)
-	util.PanicOnError(err, "Impossible to parse date "+dateStr)
-	return result
-}
-
 func ToSlice(c chan *libs.Range) []*libs.Range {
 	s := make([]*libs.Range, 0)
 	for r := range c {
@@ -115,41 +108,10 @@ func loadProblem(weekShift int, groupFile string) *libs.Problem {
 		if person.MaxSessionsPerWeek == 0 {
 			continue
 		}
-		util.LogInfo("Loading busy detail", map[string]interface{}{
-			"person": person.Email,
-		})
 		for _, workRange := range workRanges {
-			util.LogInfo("Loading busy detail on range", map[string]interface{}{
-				"start": workRange.Start,
-				"end":   workRange.End,
-			})
-			result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
-				TimeMin: gcalendar.FormatTime(workRange.Start),
-				TimeMax: gcalendar.FormatTime(workRange.End),
-				Items: []*calendar.FreeBusyRequestItem{
-					{
-						Id: person.Email,
-					},
-				},
-			}).Do()
-			util.PanicOnError(err, "Can't retrieve free/busy data for "+person.Email)
-			busyTimePeriods := result.Calendars[person.Email].Busy
-			util.LogInfo("Person busy times", map[string]interface{}{
-				"person": person.Email,
-			})
-			for _, busyTimePeriod := range busyTimePeriods {
-				util.LogInfo("Busy time period", map[string]interface{}{
-					"start": busyTimePeriod.Start,
-					"end":   busyTimePeriod.End,
-				})
-				busyTimes = append(busyTimes, &libs.BusyTime{
-					Person: person,
-					Range: &libs.Range{
-						Start: parseTime(busyTimePeriod.Start),
-						End:   parseTime(busyTimePeriod.End),
-					},
-				})
-			}
+			personBusyTimes, err := gcalendar.GetBusyTimes(cal, person, workRange)
+			util.PanicOnError(err, "Failed to get busy times")
+			busyTimes = append(busyTimes, personBusyTimes...)
 		}
 	}
 	return &libs.Problem{
