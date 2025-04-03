@@ -1,8 +1,10 @@
 package gcalendar
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"net/http"
 	"net/url"
@@ -11,7 +13,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -125,4 +126,58 @@ func saveToken(file string, token *oauth2.Token) {
 	}
 	defer f.Close()
 	json.NewEncoder(f).Encode(token)
+}
+
+// GetBusyTimes retrieves busy time slots for a person within a given time range
+func GetBusyTimes(cal *calendar.Service, person *types.Person, timeRange *types.Range) ([]*types.BusyTime, error) {
+	util.LogInfo("Loading busy detail", map[string]interface{}{
+		"person": person.Email,
+		"start":  timeRange.Start,
+		"end":    timeRange.End,
+	})
+
+	result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
+		TimeMin: FormatTime(timeRange.Start),
+		TimeMax: FormatTime(timeRange.End),
+		Items: []*calendar.FreeBusyRequestItem{
+			{
+				Id: person.Email,
+			},
+		},
+	}).Do()
+	if err != nil {
+		return nil, fmt.Errorf("can't retrieve free/busy data for %s: %w", person.Email, err)
+	}
+
+	busyTimes := make([]*types.BusyTime, 0)
+	busyTimePeriods := result.Calendars[person.Email].Busy
+	util.LogInfo("Person busy times", map[string]interface{}{
+		"person": person.Email,
+	})
+
+	for _, busyTimePeriod := range busyTimePeriods {
+		util.LogInfo("Busy time period", map[string]interface{}{
+			"start": busyTimePeriod.Start,
+			"end":   busyTimePeriod.End,
+		})
+		busyTimes = append(busyTimes, &types.BusyTime{
+			Person: person,
+			Range: &types.Range{
+				Start: parseTime(busyTimePeriod.Start),
+				End:   parseTime(busyTimePeriod.End),
+			},
+		})
+	}
+
+	return busyTimes, nil
+}
+
+// parseTime parses a time string in RFC3339 format
+func parseTime(dateStr string) time.Time {
+	result, err := time.Parse(time.RFC3339, dateStr)
+	if err != nil {
+		util.LogError(err, "Impossible to parse date "+dateStr)
+		return time.Time{}
+	}
+	return result
 }

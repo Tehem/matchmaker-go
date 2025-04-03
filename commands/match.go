@@ -2,7 +2,8 @@ package commands
 
 import (
 	"flag"
-	"matchmaker/libs"
+	"matchmaker/libs/solver"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"os"
 	"runtime/pprof"
@@ -38,9 +39,9 @@ file with reviewers tuples and planned slots.`,
 
 		yml, err := os.ReadFile("./problem.yml")
 		util.PanicOnError(err, "Can't read problem description")
-		problem, err := libs.LoadProblem(yml)
+		problem, err := types.LoadProblem(yml)
 		util.PanicOnError(err, "Can't load problem")
-		solution := libs.Solve(problem)
+		solution := solver.Solve(problem)
 
 		planYml, err := yaml.Marshal(solution)
 		util.PanicOnError(err, "Can't marshal solution")

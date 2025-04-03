@@ -1,7 +1,9 @@
-package libs
+package solver
 
 import (
 	"fmt"
+	"matchmaker/libs/config"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"os"
 	"os/signal"
@@ -12,24 +14,28 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
 
+const (
+	maxWidthExploration      = 10
+	maxExplorationPathLength = 5
+)
+
 type Solution struct {
-	Sessions []*ReviewSession
+	Sessions []*types.ReviewSession
 }
 
-func Solve(problem *Problem) *Solution {
+func Solve(problem *types.Problem) *Solution {
 	squads := generateSquads(problem.People, problem.BusyTimes)
-	ranges := generateTimeRanges(problem.WorkRanges)
-	sessions := generateSessions(squads, ranges)
+	ranges := types.GenerateTimeRanges(problem.WorkRanges)
+	sessions := types.GenerateSessions(squads, ranges)
 
 	printSquads(squads)
 	printRanges(ranges)
 
-	bestSessions, _ := getSolver(problem, sessions)([]*ReviewSession{}, "")
+	bestSessions, _ := getSolver(problem, sessions)([]*types.ReviewSession{}, "")
 	solution := &Solution{
 		Sessions: bestSessions,
 	}
@@ -38,7 +44,7 @@ func Solve(problem *Problem) *Solution {
 
 	missingCoverage := getMissingConverage(coverage, problem.TargetCoverage)
 
-	worstMissingCoverage, _ := getCoveragePerformance([]*ReviewSession{}, problem.WorkRanges, problem.TargetCoverage)
+	worstMissingCoverage, _ := getCoveragePerformance([]*types.ReviewSession{}, problem.WorkRanges, problem.TargetCoverage)
 
 	util.LogInfo("Coverage information", map[string]interface{}{
 		"missingCoverage":      missingCoverageToString(missingCoverage),
@@ -46,14 +52,14 @@ func Solve(problem *Problem) *Solution {
 		"maxCoverage":          maxCoverage,
 	})
 
-	sort.Sort(ByStart(solution.Sessions))
+	sort.Sort(types.ByStart(solution.Sessions))
 
 	printSessions(solution.Sessions)
 
 	return solution
 }
 
-func printSessions(sessions []*ReviewSession) {
+func printSessions(sessions []*types.ReviewSession) {
 	util.LogInfo("Generated sessions", map[string]interface{}{
 		"count": len(sessions),
 	})
@@ -62,7 +68,7 @@ func printSessions(sessions []*ReviewSession) {
 	}
 }
 
-func printSession(session *ReviewSession) {
+func printSession(session *types.ReviewSession) {
 	util.LogInfo("Session", map[string]interface{}{
 		"person1": session.Reviewers.People[0].Email,
 		"person2": session.Reviewers.People[1].Email,
@@ -71,10 +77,10 @@ func printSession(session *ReviewSession) {
 	})
 }
 
-type solver func([]*ReviewSession, string) ([]*ReviewSession, int)
+type solver func([]*types.ReviewSession, string) ([]*types.ReviewSession, int)
 
 type partialSolution struct {
-	sessions []*ReviewSession
+	sessions []*types.ReviewSession
 	coverage int
 }
 
@@ -86,13 +92,13 @@ func (a byCoverage) Less(i, j int) bool {
 	return isMissingCoverageBetter(a[i].coverage, a[j].coverage)
 }
 
-func getSolver(problem *Problem, allSessions []*ReviewSession) solver {
+func getSolver(problem *types.Problem, allSessions []*types.ReviewSession) solver {
 	var solve solver
 
 	workRanges := problem.WorkRanges
 	targetCoverage := problem.TargetCoverage
 
-	bestSessions := []*ReviewSession{}
+	bestSessions := []*types.ReviewSession{}
 	bestCoveragePerformance, _ := getCoveragePerformance(bestSessions, workRanges, targetCoverage)
 
 	var iterations int64 = 0
@@ -108,7 +114,7 @@ func getSolver(problem *Problem, allSessions []*ReviewSession) solver {
 		signal.Reset(syscall.SIGINT)
 	}()
 
-	solve = func(currentSessions []*ReviewSession, path string) ([]*ReviewSession, int) {
+	solve = func(currentSessions []*types.ReviewSession, path string) ([]*types.ReviewSession, int) {
 		derivedSolutions := []*partialSolution{}
 
 		for _, session := range allSessions {
@@ -128,7 +134,7 @@ func getSolver(problem *Problem, allSessions []*ReviewSession) solver {
 			}
 
 			derivedSolution := &partialSolution{
-				sessions: make([]*ReviewSession, len(newSessions)),
+				sessions: make([]*types.ReviewSession, len(newSessions)),
 				coverage: newCoveragePerformance,
 			}
 			copy(derivedSolution.sessions, newSessions)
@@ -148,7 +154,7 @@ func getSolver(problem *Problem, allSessions []*ReviewSession) solver {
 			newCoveragePerformance := derivedSolutions[0].coverage
 			if isMissingCoverageBetter(newCoveragePerformance, bestCoveragePerformance) {
 				newSessions := derivedSolutions[0].sessions
-				bestSessions = make([]*ReviewSession, len(newSessions))
+				bestSessions = make([]*types.ReviewSession, len(newSessions))
 				copy(bestSessions, newSessions)
 				bestCoveragePerformance = newCoveragePerformance
 			}
@@ -179,16 +185,16 @@ func isMissingCoverageBetter(coverage1 int, coverage2 int) bool {
 	return coverage1 <= coverage2
 }
 
-func isSessionCompatible(session *ReviewSession, sessions []*ReviewSession) bool {
+func isSessionCompatible(session *types.ReviewSession, sessions []*types.ReviewSession) bool {
 	// store the number of sessions to cap it
 	reviewers := session.Reviewers
 	people := reviewers.People
-	minSessionSpacingHours := viper.GetDuration("sessions.minSessionSpacingHours")
+	minSessionSpacingHours := config.GetMinSessionSpacing()
 
 	person0 := people[0]
-	person0.isSessionCompatibleSessionCount = 0
+	person0.ResetSessionCount()
 	person1 := people[1]
-	person1.isSessionCompatibleSessionCount = 0
+	person1.ResetSessionCount()
 
 	for _, otherSession := range sessions {
 		// not the same session two times
@@ -219,24 +225,24 @@ func isSessionCompatible(session *ReviewSession, sessions []*ReviewSession) bool
 			}
 		}
 		// every reviewer must be able to attempt all the sessions
-		otherPerson0.isSessionCompatibleSessionCount += 1
-		otherPerson1.isSessionCompatibleSessionCount += 1
+		otherPerson0.IncrementSessionCount()
+		otherPerson1.IncrementSessionCount()
 	}
 
 	// check the max reviews per person
-	maxSessionsForPerson0 := viper.GetInt("sessions.maxPerPersonPerWeek")
-	maxSessionsForPerson1 := viper.GetInt("sessions.maxPerPersonPerWeek")
+	maxSessionsForPerson0 := config.GetMaxSessionsPerPersonPerWeek()
+	maxSessionsForPerson1 := config.GetMaxSessionsPerPersonPerWeek()
 	if person0.MaxSessionsPerWeek != 0 {
 		maxSessionsForPerson0 = person0.MaxSessionsPerWeek
 	}
 	if person1.MaxSessionsPerWeek != 0 {
 		maxSessionsForPerson1 = person1.MaxSessionsPerWeek
 	}
-	return person0.isSessionCompatibleSessionCount < maxSessionsForPerson0 &&
-		person1.isSessionCompatibleSessionCount < maxSessionsForPerson1
+	return person0.GetSessionCount() < maxSessionsForPerson0 &&
+		person1.GetSessionCount() < maxSessionsForPerson1
 }
 
-func printRanges(ranges []*Range) {
+func printRanges(ranges []*types.Range) {
 	for _, currentRange := range ranges {
 		util.LogInfo("Range", map[string]interface{}{
 			"start": currentRange.Start.Format(time.RFC3339),
@@ -245,29 +251,13 @@ func printRanges(ranges []*Range) {
 	}
 }
 
-func printSquads(squads []*Squad) {
+func printSquads(squads []*types.Squad) {
 	for _, squad := range squads {
 		util.LogInfo("Squad", map[string]interface{}{
 			"person1": squad.People[0].Email,
 			"person2": squad.People[1].Email,
 		})
 	}
-}
-
-type Squad struct {
-	People     []*Person
-	BusyRanges []*Range
-}
-
-func (squad *Squad) GetDisplayName() string {
-	result := ""
-	for _, person := range squad.People {
-		if result != "" {
-			result = result + " / "
-		}
-		result = result + getNameFromEmail(person.Email)
-	}
-	return result
 }
 
 func getNameFromEmail(email string) string {
@@ -283,13 +273,14 @@ type Score struct {
 
 var coveragePeriodSpan = 30 * time.Minute
 
-func getCoveragePerformance(sessions []*ReviewSession, workRanges []*Range, target int) (int, int) {
+func getCoveragePerformance(sessions []*types.ReviewSession, workRanges []*types.Range, target int) (int, int) {
 	coverage, maxCoverage := getCoverage(workRanges, sessions)
 
 	missingCoverage := getMissingConverage(coverage, target)
 
 	return missingCoverage, maxCoverage
 }
+
 func getMissingConverage(exclusivityCoverage map[int]int, targetValue int) int {
 	missingCoverage := 0
 	for _, value := range exclusivityCoverage {
@@ -300,7 +291,7 @@ func getMissingConverage(exclusivityCoverage map[int]int, targetValue int) int {
 	return missingCoverage
 }
 
-func getCoverage(workRanges []*Range, sessions []*ReviewSession) (map[int]int, int) {
+func getCoverage(workRanges []*types.Range, sessions []*types.ReviewSession) (map[int]int, int) {
 	coverage := map[int]int{}
 	for _, workRange := range workRanges {
 		date := workRange.Start
@@ -325,7 +316,7 @@ func getCoverage(workRanges []*Range, sessions []*ReviewSession) (map[int]int, i
 	return coverage, maxCoverage
 }
 
-func getCoveragePeriodId(workRanges []*Range, date time.Time) int {
+func getCoveragePeriodId(workRanges []*types.Range, date time.Time) int {
 	elapsedNanoseconds := date.Sub(workRanges[0].Start).Nanoseconds()
 	elapsedCoveragePeriods := elapsedNanoseconds / (30 * 60 * 1000 * 1000 * 1000)
 	return int(elapsedCoveragePeriods)

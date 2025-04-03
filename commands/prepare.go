@@ -1,99 +1,19 @@
 package commands
 
 import (
-	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
+	"matchmaker/libs/timeutil"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"google.golang.org/api/calendar/v3"
 )
 
-func FirstDayOfISOWeek(weekShift int) time.Time {
-	date := time.Now()
-	date = time.Date(date.Year(), date.Month(), date.Day(), date.Hour(), 0, 0, 0, date.Location())
-	date = date.AddDate(0, 0, 7*weekShift)
-
-	// iterate to Monday
-	for !(date.Weekday() == time.Monday && date.Hour() == 0) {
-		date = date.Add(time.Hour)
-	}
-
-	date = date.AddDate(0, 0, 0)
-
-	return date
-}
-
-func GetWorkRange(beginOfWeek time.Time, day int, startHour int, startMinute int, endHour int, endMinute int) *libs.Range {
-	start := time.Date(
-		beginOfWeek.Year(),
-		beginOfWeek.Month(),
-		beginOfWeek.Day()+day,
-		startHour,
-		startMinute,
-		0,
-		0,
-		beginOfWeek.Location(),
-	)
-	end := time.Date(
-		beginOfWeek.Year(),
-		beginOfWeek.Month(),
-		beginOfWeek.Day()+day,
-		endHour,
-		endMinute,
-		0,
-		0,
-		beginOfWeek.Location(),
-	)
-	return &libs.Range{
-		Start: start,
-		End:   end,
-	}
-}
-
-func GetWeekWorkRanges(beginOfWeek time.Time) chan *libs.Range {
-	ranges := make(chan *libs.Range)
-
-	go func() {
-		for day := 0; day < 5; day++ {
-			ranges <- GetWorkRange(beginOfWeek, day,
-				viper.GetInt("workingHours.morning.start.hour"),
-				viper.GetInt("workingHours.morning.start.minute"),
-				viper.GetInt("workingHours.morning.end.hour"),
-				viper.GetInt("workingHours.morning.end.minute"))
-			ranges <- GetWorkRange(beginOfWeek, day,
-				viper.GetInt("workingHours.afternoon.start.hour"),
-				viper.GetInt("workingHours.afternoon.start.minute"),
-				viper.GetInt("workingHours.afternoon.end.hour"),
-				viper.GetInt("workingHours.afternoon.end.minute"))
-		}
-		close(ranges)
-	}()
-
-	return ranges
-}
-
-func parseTime(dateStr string) time.Time {
-	result, err := time.Parse(time.RFC3339, dateStr)
-	util.PanicOnError(err, "Impossible to parse date "+dateStr)
-	return result
-}
-
-func ToSlice(c chan *libs.Range) []*libs.Range {
-	s := make([]*libs.Range, 0)
-	for r := range c {
-		s = append(s, r)
-	}
-	return s
-}
-
-func loadProblem(weekShift int, groupFile string) *libs.Problem {
+func loadProblem(weekShift int, groupFile string) *types.Problem {
 	groupPath := filepath.Join("groups", groupFile)
-	people, err := libs.LoadPersons(groupPath)
+	people, err := types.LoadPersons(groupPath)
 	util.PanicOnError(err, "Cannot load people file")
 	util.LogInfo("People file loaded", map[string]interface{}{
 		"count": len(people),
@@ -101,62 +21,32 @@ func loadProblem(weekShift int, groupFile string) *libs.Problem {
 	})
 
 	cal, err := gcalendar.GetGoogleCalendarService()
-	util.PanicOnError(err, "Can't get Google Calendar client")
-	util.LogInfo("Connected to google calendar", nil)
+	util.PanicOnError(err, "Cannot connect to Google Calendar")
+	util.LogInfo("Connected to Google Calendar", nil)
 
-	beginOfWeek := FirstDayOfISOWeek(weekShift)
-	util.LogInfo("Planning for week", map[string]interface{}{
-		"weekFirstDay": beginOfWeek,
-	})
+	firstDay := timeutil.FirstDayOfISOWeek(weekShift)
+	workRangesChan, err := timeutil.GetWeekWorkRanges(firstDay)
+	util.PanicOnError(err, "Failed to get work ranges")
+	workRanges := timeutil.ToSlice(workRangesChan)
 
-	workRanges := ToSlice(GetWeekWorkRanges(beginOfWeek))
-	busyTimes := []*libs.BusyTime{}
+	busyTimes := []*types.BusyTime{}
 	for _, person := range people {
-		if person.MaxSessionsPerWeek == 0 {
+		if !person.CanParticipateInSession() {
 			continue
 		}
-		util.LogInfo("Loading busy detail", map[string]interface{}{
-			"person": person.Email,
-		})
 		for _, workRange := range workRanges {
-			util.LogInfo("Loading busy detail on range", map[string]interface{}{
-				"start": workRange.Start,
-				"end":   workRange.End,
-			})
-			result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
-				TimeMin: gcalendar.FormatTime(workRange.Start),
-				TimeMax: gcalendar.FormatTime(workRange.End),
-				Items: []*calendar.FreeBusyRequestItem{
-					{
-						Id: person.Email,
-					},
-				},
-			}).Do()
-			util.PanicOnError(err, "Can't retrieve free/busy data for "+person.Email)
-			busyTimePeriods := result.Calendars[person.Email].Busy
-			util.LogInfo("Person busy times", map[string]interface{}{
-				"person": person.Email,
-			})
-			for _, busyTimePeriod := range busyTimePeriods {
-				util.LogInfo("Busy time period", map[string]interface{}{
-					"start": busyTimePeriod.Start,
-					"end":   busyTimePeriod.End,
-				})
-				busyTimes = append(busyTimes, &libs.BusyTime{
-					Person: person,
-					Range: &libs.Range{
-						Start: parseTime(busyTimePeriod.Start),
-						End:   parseTime(busyTimePeriod.End),
-					},
-				})
-			}
+			personBusyTimes, err := gcalendar.GetBusyTimes(cal, person, workRange)
+			util.PanicOnError(err, "Cannot load busy times for person")
+			busyTimes = append(busyTimes, personBusyTimes...)
 		}
 	}
-	return &libs.Problem{
-		People:         people,
-		WorkRanges:     workRanges,
-		BusyTimes:      busyTimes,
-		TargetCoverage: 2,
+
+	return &types.Problem{
+		People:           people,
+		WorkRanges:       workRanges,
+		BusyTimes:        busyTimes,
+		TargetCoverage:   1,
+		MaxTotalCoverage: 2,
 	}
 }
 

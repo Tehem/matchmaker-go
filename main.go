@@ -19,7 +19,7 @@ func main() {
 	viper.SetDefault("sessions.sessionDurationMinutes", 60)
 	viper.SetDefault("sessions.minSessionSpacingHours", 8)
 	viper.SetDefault("sessions.maxPerPersonPerWeek", 2)
-	viper.SetDefault("sessions.sessionPrefix", "Pairing ")
+	viper.SetDefault("sessions.sessionPrefix", "Pairing")
 	// Default working hours
 	viper.SetDefault("workingHours.timezone", "Europe/Paris")
 	viper.SetDefault("workingHours.morning.start.hour", 10)

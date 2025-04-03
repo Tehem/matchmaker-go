@@ -1,32 +1,24 @@
-package libs
+package types
 
 import (
-	"os"
-
 	"gopkg.in/yaml.v3"
 )
 
-type Person struct {
-	Email                           string   `yaml:"email"`
-	IsGoodReviewer                  bool     `yaml:"isgoodreviewer"`
-	MaxSessionsPerWeek              int      `yaml:"maxsessionsperweek"`
-	Skills                          []string `yaml:"skills"`
-	isSessionCompatibleSessionCount int      `yaml:"-"`
+// Solution represents a solution to a problem
+type Solution struct {
+	Sessions []*ReviewSession
 }
 
-func LoadPersons(path string) ([]*Person, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
+// Tuples represents a collection of pairs and unpaired people
+type Tuples struct {
+	Pairs          []Tuple
+	UnpairedPeople []*Person
+}
 
-	var persons []*Person
-	err = yaml.Unmarshal(data, &persons)
-	if err != nil {
-		return nil, err
-	}
-
-	return persons, nil
+// Tuple represents a pair of people
+type Tuple struct {
+	Person1 *Person
+	Person2 *Person
 }
 
 type BusyTime struct {
@@ -52,6 +44,23 @@ type SerializedProblem struct {
 	WorkRanges     []*Range
 	BusyTimes      []*SerializedBusyTime
 	TargetCoverage int
+}
+
+// WeeklySolveResult represents the result of a weekly solve operation
+type WeeklySolveResult struct {
+	Solution        *Solution
+	UnmatchedTuples []Tuple
+	UnmatchedPeople []*Person
+}
+
+// WeeklySolve solves a problem for a week
+func WeeklySolve(problem *Problem) *WeeklySolveResult {
+	// TODO: Implement weekly solve logic
+	return &WeeklySolveResult{
+		Solution:        &Solution{},
+		UnmatchedTuples: []Tuple{},
+		UnmatchedPeople: []*Person{},
+	}
 }
 
 func (problem *Problem) ToYaml() ([]byte, error) {
