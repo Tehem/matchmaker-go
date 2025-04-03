@@ -1,11 +1,10 @@
 package types
 
 import (
+	"matchmaker/libs/config"
 	"math/rand"
 	"sort"
 	"time"
-
-	"github.com/spf13/viper"
 )
 
 // Range represents a time range
@@ -63,9 +62,9 @@ func (r *Range) Minutes() float64 {
 
 // GenerateTimeRanges generates time ranges for the given work ranges
 func GenerateTimeRanges(workRanges []*Range) []*Range {
-	defaultDuration := viper.GetDuration("sessions.sessionDurationMinutes")
+	defaultDuration := config.GetSessionDuration()
 	var durations = []time.Duration{
-		defaultDuration * time.Minute,
+		defaultDuration,
 	}
 	ranges := []*Range{}
 	for _, duration := range durations {

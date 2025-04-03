@@ -1,18 +1,20 @@
 package solver
 
 import (
+	"matchmaker/libs/config"
 	"matchmaker/libs/types"
-	"time"
 )
 
 // GenerateTimeRanges generates all possible time ranges for scheduling
 func GenerateTimeRanges(workRanges []*types.Range) []*types.Range {
 	ranges := make([]*types.Range, 0)
+	sessionDuration := config.GetSessionDuration()
+
 	for _, workRange := range workRanges {
 		start := workRange.Start
 		end := workRange.End
 		for start.Before(end) {
-			rangeEnd := start.Add(30 * time.Minute)
+			rangeEnd := start.Add(sessionDuration)
 			if rangeEnd.After(end) {
 				break
 			}

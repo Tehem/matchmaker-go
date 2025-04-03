@@ -17,8 +17,11 @@ const (
 	WorkingHoursAfternoonStartMinute = "workingHours.afternoon.start.minute"
 	WorkingHoursAfternoonEndHour     = "workingHours.afternoon.end.hour"
 	WorkingHoursAfternoonEndMinute   = "workingHours.afternoon.end.minute"
+	WorkingHoursTimezone             = "workingHours.timezone"
+	SessionDurationMinutes           = "sessions.sessionDurationMinutes"
 	MinSessionSpacingHours           = "sessions.minSessionSpacingHours"
 	MaxSessionsPerPersonPerWeek      = "sessions.maxPerPersonPerWeek"
+	SessionPrefix                    = "sessions.sessionPrefix"
 )
 
 // WorkHoursConfig represents the configuration for work hours
@@ -50,14 +53,29 @@ func GetWorkHoursConfig(period string) (*WorkHoursConfig, error) {
 	}, nil
 }
 
+// GetTimezone returns the configured timezone
+func GetTimezone() string {
+	return viper.GetString(WorkingHoursTimezone)
+}
+
+// GetSessionDuration returns the configured session duration
+func GetSessionDuration() time.Duration {
+	return time.Duration(viper.GetInt(SessionDurationMinutes)) * time.Minute
+}
+
 // GetMinSessionSpacing returns the minimum spacing between sessions
 func GetMinSessionSpacing() time.Duration {
-	return viper.GetDuration(MinSessionSpacingHours)
+	return time.Duration(viper.GetInt(MinSessionSpacingHours)) * time.Hour
 }
 
 // GetMaxSessionsPerPersonPerWeek returns the maximum number of sessions a person can have per week
 func GetMaxSessionsPerPersonPerWeek() int {
 	return viper.GetInt(MaxSessionsPerPersonPerWeek)
+}
+
+// GetSessionPrefix returns the prefix used for session event titles
+func GetSessionPrefix() string {
+	return viper.GetString(SessionPrefix)
 }
 
 // validateTimeRange checks if the time range is valid
