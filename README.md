@@ -43,6 +43,54 @@ go get -u
 go mod tidy
 ```
 
+## 🧪 Testing
+
+The project includes comprehensive tests to ensure code quality and functionality. Here are the main test commands:
+
+### Run All Tests
+```bash
+go test ./...
+```
+
+### Run Tests with Verbose Output
+```bash
+go test -v ./...
+```
+
+### Run Tests with Coverage
+```bash
+go test -cover ./...
+```
+
+### Run Tests in a Specific Package
+```bash
+go test ./libs/types
+```
+
+### Run a Specific Test Function
+```bash
+go test ./libs/types -run TestSquad
+```
+
+### Run Tests with Race Detection
+```bash
+go test -race ./...
+```
+
+### Generate and View Coverage Report
+```bash
+# Generate coverage profile
+go test -coverprofile=coverage.out ./...
+
+# View coverage report in browser
+go tool cover -html=coverage.out
+```
+
+### Run Tests with Timeout
+```bash
+go test -timeout 30s ./...
+```
+
 ## ⚙️ Setup
 
 You need to create/retrieve a group file `groups/group.yml` containing people configuration for review.

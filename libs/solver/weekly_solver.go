@@ -124,7 +124,7 @@ func scoreSession(session *types.ReviewSession, problem *types.Problem) (int, bo
 // hasTimeConflict checks if a session conflicts with any busy times
 func hasTimeConflict(session *types.ReviewSession, busyTimes []*types.BusyTime) bool {
 	for _, busyTime := range busyTimes {
-		if haveIntersection(session.Range, busyTime.Range) {
+		if session.Range.Overlaps(busyTime.Range) {
 			return true
 		}
 	}
@@ -202,36 +202,41 @@ func getWorkingHours(referenceTime time.Time) WorkingHours {
 	}
 }
 
+// isInRange checks if a time is within a range (inclusive)
+func isInRange(t, start, end time.Time) bool {
+	return !t.Before(start) && !t.After(end)
+}
+
 // calculateTimeScore calculates the score based on time of day
 func calculateTimeScore(startTime time.Time, hours WorkingHours) int {
 	score := 0
 
 	// Check if session is in the last hour of the day (low energy)
-	if startTime.After(hours.LastHourStart) {
+	if isInRange(startTime, hours.LastHourStart, hours.AfternoonEnd) {
 		score -= 20 // Strong penalty for sessions in the last hour
 	}
 
 	// Define preferred time slots
-	// Just before lunch (30 minutes before lunch start)
-	preferredMorningStart := hours.LunchStart.Add(-30 * time.Minute)
+	preferredMorningStart := hours.LunchStart.Add(-1 * time.Hour)
+	preferredAfternoonEnd := hours.LunchEnd.Add(1 * time.Hour)
 
-	// Check if session is just before lunch (preferred morning slot)
-	if startTime.After(preferredMorningStart) && startTime.Before(hours.LunchStart) {
+	// Check if session is in preferred morning slot (1 hour before lunch)
+	if isInRange(startTime, preferredMorningStart, hours.LunchStart) {
 		score += 25 // Highest score for sessions just before lunch
 	}
 
-	// Check if session is just after lunch (preferred afternoon slot)
-	if startTime.After(hours.LunchEnd) && startTime.Before(hours.LunchEnd.Add(1*time.Hour)) {
+	// Check if session is in preferred afternoon slot (1 hour after lunch)
+	if isInRange(startTime, hours.LunchEnd, preferredAfternoonEnd) {
 		score += 25 // Highest score for sessions just after lunch
 	}
 
-	// Check if session is in the morning but not in the preferred slot
-	if startTime.After(hours.MorningStart) && startTime.Before(hours.MorningEnd) {
+	// Check if session is in regular morning slot
+	if isInRange(startTime, hours.MorningStart, hours.MorningEnd) {
 		score += 10 // Lower score for other morning sessions
 	}
 
-	// Check if session is in the afternoon but not in the preferred slot
-	if startTime.After(hours.AfternoonStart) && startTime.Before(hours.AfternoonEnd) {
+	// Check if session is in regular afternoon slot
+	if isInRange(startTime, hours.AfternoonStart, hours.AfternoonEnd) {
 		score += 10 // Lower score for other afternoon sessions
 	}
 

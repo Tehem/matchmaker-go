@@ -69,22 +69,36 @@ func GenerateTimeRanges(workRanges []*Range) []*Range {
 	ranges := []*Range{}
 	for _, duration := range durations {
 		for _, workRange := range workRanges {
+			// Calculate the number of ranges that can fit in the work range
+			totalDuration := workRange.Duration()
+			numRanges := int(totalDuration / duration)
+			if numRanges == 0 {
+				continue
+			}
+
+			// Generate ranges
 			start := workRange.Start
-			for !workRange.End.Before(start.Add(duration)) {
+			for range numRanges {
+				end := start.Add(duration)
+				if end.After(workRange.End) {
+					break
+				}
 				ranges = append(ranges, &Range{
 					Start: start,
-					End:   start.Add(duration),
+					End:   end,
 				})
-				start = start.Add(duration)
+				start = end
 			}
 		}
 	}
 
+	// Shuffle the ranges
 	for i := range ranges {
 		j := rand.Intn(i + 1)
 		ranges[i], ranges[j] = ranges[j], ranges[i]
 	}
 
+	// Sort by decreasing length
 	sort.Sort(byDecreasingLength(ranges))
 
 	return ranges
