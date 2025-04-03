@@ -19,6 +19,20 @@ import (
 	"google.golang.org/api/option"
 )
 
+// GCalendar represents a Google Calendar client
+type GCalendar struct {
+	service *calendar.Service
+}
+
+// NewGCalendar creates a new GCalendar client
+func NewGCalendar() (*GCalendar, error) {
+	service, err := GetGoogleCalendarService()
+	if err != nil {
+		return nil, err
+	}
+	return &GCalendar{service: service}, nil
+}
+
 func GetGoogleCalendarService() (*calendar.Service, error) {
 	ctx := context.Background()
 
@@ -129,14 +143,13 @@ func saveToken(file string, token *oauth2.Token) {
 }
 
 // GetBusyTimes retrieves busy time slots for a person within a given time range
-func GetBusyTimes(cal *calendar.Service, person *types.Person, timeRange *types.Range) ([]*types.BusyTime, error) {
+func (g *GCalendar) GetBusyTimes(person *types.Person, timeRange *types.Range) ([]*types.BusyTime, error) {
 	util.LogInfo("Loading busy detail", map[string]interface{}{
 		"person": person.Email,
-		"start":  timeRange.Start,
-		"end":    timeRange.End,
 	})
+	util.LogRange("Time range", timeRange)
 
-	result, err := cal.Freebusy.Query(&calendar.FreeBusyRequest{
+	result, err := g.service.Freebusy.Query(&calendar.FreeBusyRequest{
 		TimeMin: FormatTime(timeRange.Start),
 		TimeMax: FormatTime(timeRange.End),
 		Items: []*calendar.FreeBusyRequestItem{
@@ -156,17 +169,15 @@ func GetBusyTimes(cal *calendar.Service, person *types.Person, timeRange *types.
 	})
 
 	for _, busyTimePeriod := range busyTimePeriods {
-		util.LogInfo("Busy time period", map[string]interface{}{
-			"start": busyTimePeriod.Start,
-			"end":   busyTimePeriod.End,
-		})
-		busyTimes = append(busyTimes, &types.BusyTime{
+		busyTime := &types.BusyTime{
 			Person: person,
 			Range: &types.Range{
 				Start: parseTime(busyTimePeriod.Start),
 				End:   parseTime(busyTimePeriod.End),
 			},
-		})
+		}
+		util.LogRange("Busy time period", busyTime.Range)
+		busyTimes = append(busyTimes, busyTime)
 	}
 
 	return busyTimes, nil
@@ -180,4 +191,24 @@ func parseTime(dateStr string) time.Time {
 		return time.Time{}
 	}
 	return result
+}
+
+func (g *GCalendar) LogBusyTime(busyTime *types.BusyTime) {
+	util.LogRange("Busy time", busyTime.Range)
+}
+
+// GetBusyTimesForPeople retrieves busy times for multiple people across work ranges
+func (g *GCalendar) GetBusyTimesForPeople(people []*types.Person, workRanges []*types.Range) []*types.BusyTime {
+	busyTimes := []*types.BusyTime{}
+	for _, person := range people {
+		if !person.CanParticipateInSession() {
+			continue
+		}
+		for _, workRange := range workRanges {
+			personBusyTimes, err := g.GetBusyTimes(person, workRange)
+			util.PanicOnError(err, "Cannot load busy times for person")
+			busyTimes = append(busyTimes, personBusyTimes...)
+		}
+	}
+	return busyTimes
 }

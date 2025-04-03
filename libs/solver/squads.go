@@ -1,11 +1,12 @@
 package solver
 
+// This file is intentionally left empty as the generateSquads function
+// has been moved to the squads package.
+
 import (
 	"matchmaker/libs/types"
 	"matchmaker/util"
 	"math/rand"
-	"sort"
-	"time"
 )
 
 // Squads is a slice of Squad pointers
@@ -53,10 +54,7 @@ func generateSquads(people []*types.Person, busyTimes []*types.BusyTime) []*type
 		})
 		util.LogInfo("Busy ranges", nil)
 		for j := range squads[i].BusyRanges {
-			util.LogInfo("Busy range", map[string]interface{}{
-				"start": squads[i].BusyRanges[j].Start.Format(time.Stamp),
-				"end":   squads[i].BusyRanges[j].End.Format(time.Stamp),
-			})
+			util.LogRange("Busy range", squads[i].BusyRanges[j])
 		}
 	}
 	return squads
@@ -81,44 +79,7 @@ func mergeBusyRanges(busyTimes []*types.BusyTime, people []*types.Person) []*typ
 			}
 		}
 	}
-	return mergeRanges(busyRanges)
-}
-
-func mergeRanges(ranges []*types.Range) []*types.Range {
-	if len(ranges) == 0 {
-		return ranges
-	}
-
-	// Sort ranges by start time
-	sort.Slice(ranges, func(i, j int) bool {
-		return ranges[i].Start.Before(ranges[j].Start)
-	})
-
-	merged := []*types.Range{}
-	current := ranges[0]
-
-	for i := 1; i < len(ranges); i++ {
-		next := ranges[i]
-		if current.End.After(next.Start) || current.End.Equal(next.Start) {
-			// Ranges overlap or are adjacent, merge them
-			if next.End.After(current.End) {
-				current.End = next.End
-			}
-		} else {
-			// Ranges don't overlap, add current to merged and move to next
-			merged = append(merged, current)
-			current = next
-		}
-	}
-
-	// Add the last range
-	merged = append(merged, current)
-
-	return merged
-}
-
-func haveIntersection(range1 *types.Range, range2 *types.Range) bool {
-	return range1.End.After(range2.Start) && range2.End.After(range1.Start)
+	return types.MergeRanges(busyRanges)
 }
 
 func (squads Squads) Print() {

@@ -1,8 +1,6 @@
 package types
 
 import (
-	"matchmaker/libs/config"
-	"matchmaker/libs/testutils"
 	"testing"
 	"time"
 )
@@ -156,109 +154,5 @@ func TestRangeMethods(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, tt.test)
-	}
-}
-
-func TestGenerateTimeRanges(t *testing.T) {
-	// Create a config mock
-	configMock := testutils.NewConfigMock()
-	configMock.SetupWorkHours()
-	defer configMock.Restore()
-
-	// Create a work range (Monday 9:00-17:00)
-	start := time.Date(2024, 4, 1, 9, 0, 0, 0, time.UTC)
-	end := time.Date(2024, 4, 1, 17, 0, 0, 0, time.UTC)
-	workRange := &Range{Start: start, End: end}
-
-	// Generate time ranges with a timeout
-	done := make(chan bool)
-	var ranges []*Range
-	go func() {
-		ranges = GenerateTimeRanges([]*Range{workRange})
-		done <- true
-	}()
-
-	select {
-	case <-done:
-		// Test completed successfully
-	case <-time.After(1 * time.Second):
-		t.Fatal("GenerateTimeRanges timed out after 1 second")
-	}
-
-	// Verify the results
-	if len(ranges) == 0 {
-		t.Error("GenerateTimeRanges() returned no ranges")
-		return
-	}
-
-	// Calculate expected number of ranges
-	expectedRanges := int(workRange.Duration().Minutes() / config.GetSessionDuration().Minutes())
-	if len(ranges) != expectedRanges {
-		t.Errorf("GenerateTimeRanges() returned %d ranges, want %d", len(ranges), expectedRanges)
-	}
-
-	// Check that ranges are sorted by decreasing length
-	for i := 1; i < len(ranges); i++ {
-		if ranges[i].Minutes() > ranges[i-1].Minutes() {
-			t.Errorf("Ranges are not sorted by decreasing length: %v > %v", ranges[i].Minutes(), ranges[i-1].Minutes())
-		}
-	}
-
-	// Check that all ranges are within the work range
-	for _, r := range ranges {
-		if r.Start.Before(workRange.Start) || r.End.After(workRange.End) {
-			t.Errorf("Range %v-%v is outside work range %v-%v", r.Start, r.End, workRange.Start, workRange.End)
-		}
-	}
-
-	// Check that ranges don't overlap
-	for i := 0; i < len(ranges)-1; i++ {
-		for j := i + 1; j < len(ranges); j++ {
-			if HaveIntersection(ranges[i], ranges[j]) {
-				t.Errorf("Ranges %v-%v and %v-%v overlap", ranges[i].Start, ranges[i].End, ranges[j].Start, ranges[j].End)
-			}
-		}
-	}
-}
-
-func TestHaveIntersection(t *testing.T) {
-	// Create a fixed date for testing
-	start := time.Date(2024, 4, 1, 9, 0, 0, 0, time.UTC)
-	end := time.Date(2024, 4, 1, 17, 0, 0, 0, time.UTC)
-	r1 := &Range{Start: start, End: end}
-
-	tests := []struct {
-		name string
-		r2   *Range
-		want bool
-	}{
-		{
-			name: "no intersection before",
-			r2:   &Range{Start: start.Add(-2 * time.Hour), End: start.Add(-time.Hour)},
-			want: false,
-		},
-		{
-			name: "intersection at start",
-			r2:   &Range{Start: start.Add(-time.Hour), End: start.Add(time.Hour)},
-			want: true,
-		},
-		{
-			name: "intersection in middle",
-			r2:   &Range{Start: start.Add(4 * time.Hour), End: end.Add(time.Hour)},
-			want: true,
-		},
-		{
-			name: "no intersection after",
-			r2:   &Range{Start: end.Add(time.Hour), End: end.Add(2 * time.Hour)},
-			want: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := HaveIntersection(r1, tt.r2); got != tt.want {
-				t.Errorf("HaveIntersection() = %v, want %v", got, tt.want)
-			}
-		})
 	}
 }

@@ -3,6 +3,7 @@ package solver
 import (
 	"fmt"
 	"matchmaker/libs/config"
+	"matchmaker/libs/squads"
 	"matchmaker/libs/types"
 	"matchmaker/util"
 	"os"
@@ -28,9 +29,9 @@ type Solution struct {
 }
 
 func Solve(problem *types.Problem) *Solution {
-	squads := generateSquads(problem.People, problem.BusyTimes)
+	squads := squads.GenerateSquads(problem.People, problem.BusyTimes)
 	ranges := types.GenerateTimeRanges(problem.WorkRanges)
-	sessions := GenerateSessions(squads, ranges)
+	sessions := types.GenerateSessions(squads, ranges)
 
 	printSquads(squads)
 	printRanges(ranges)
@@ -52,7 +53,7 @@ func Solve(problem *types.Problem) *Solution {
 		"maxCoverage":          maxCoverage,
 	})
 
-	sort.Sort(ByStart(solution.Sessions))
+	sort.Sort(types.ByStart(solution.Sessions))
 
 	printSessions(solution.Sessions)
 
@@ -69,12 +70,7 @@ func printSessions(sessions []*types.ReviewSession) {
 }
 
 func printSession(session *types.ReviewSession) {
-	util.LogInfo("Session", map[string]interface{}{
-		"person1": session.Reviewers.People[0].Email,
-		"person2": session.Reviewers.People[1].Email,
-		"start":   session.Range.Start.Format(time.Stamp),
-		"end":     session.Range.End.Format(time.Stamp),
-	})
+	util.LogSession("Session", session)
 }
 
 type solver func([]*types.ReviewSession, string) ([]*types.ReviewSession, int)
@@ -220,7 +216,7 @@ func isSessionCompatible(session *types.ReviewSession, sessions []*types.ReviewS
 		if otherPerson0 == person0 || otherPerson0 == person1 || otherPerson1 == person0 || otherPerson1 == person1 {
 			range1 := session.Range.Pad(minSessionSpacingHours)
 			range2 := otherSession.Range
-			if haveIntersection(range1, range2) {
+			if range1.Overlaps(range2) {
 				return false
 			}
 		}
@@ -244,10 +240,7 @@ func isSessionCompatible(session *types.ReviewSession, sessions []*types.ReviewS
 
 func printRanges(ranges []*types.Range) {
 	for _, currentRange := range ranges {
-		util.LogInfo("Range", map[string]interface{}{
-			"start": currentRange.Start.Format(time.RFC3339),
-			"end":   currentRange.End.Format(time.RFC3339),
-		})
+		util.LogRange("Range", currentRange)
 	}
 }
 

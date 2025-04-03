@@ -27,7 +27,15 @@ func (s *ReviewSession) End() time.Time {
 // GetDisplayName returns a display name for the session
 func (s *ReviewSession) GetDisplayName() string {
 	sessionPrefix := viper.GetString("sessions.sessionPrefix")
-	return sessionPrefix + " - " + s.Reviewers.GetDisplayName()
+	date := s.Range.Start.Format("2006-01-02")
+	startTime := s.Range.Start.Format("15:04")
+	endTime := s.Range.End.Format("15:04")
+	return fmt.Sprintf("%s: %s -> %s - %s - %s", date, startTime, endTime, sessionPrefix, s.Reviewers.GetDisplayName())
+}
+
+func (s *ReviewSession) GetEventSummary() string {
+	sessionPrefix := viper.GetString("sessions.sessionPrefix")
+	return fmt.Sprintf("%s - %s", sessionPrefix, s.Reviewers.GetDisplayName())
 }
 
 // Validate checks if the session is valid

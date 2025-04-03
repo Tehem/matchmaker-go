@@ -1,9 +1,6 @@
 package types
 
 import (
-	"matchmaker/libs/config"
-	"math/rand"
-	"sort"
 	"time"
 )
 
@@ -35,7 +32,7 @@ func (r *Range) Contains(t time.Time) bool {
 
 // Overlaps returns true if the given range overlaps with this range
 func (r *Range) Overlaps(other *Range) bool {
-	return !r.End.Before(other.Start) && !other.End.Before(r.Start)
+	return r.End.After(other.Start) && other.End.After(r.Start)
 }
 
 // Before returns true if this range ends before the given time
@@ -48,71 +45,7 @@ func (r *Range) After(t time.Time) bool {
 	return r.Start.After(t)
 }
 
-func (r *Range) Pad(padding time.Duration) *Range {
-	return &Range{
-		Start: r.Start.Add(-padding),
-		End:   r.End.Add(padding),
-	}
-}
-
 // Minutes returns the duration of the range in minutes
 func (r *Range) Minutes() float64 {
 	return r.End.Sub(r.Start).Minutes()
-}
-
-// GenerateTimeRanges generates time ranges for the given work ranges
-func GenerateTimeRanges(workRanges []*Range) []*Range {
-	defaultDuration := config.GetSessionDuration()
-	var durations = []time.Duration{
-		defaultDuration,
-	}
-	ranges := []*Range{}
-	for _, duration := range durations {
-		for _, workRange := range workRanges {
-			// Calculate the number of ranges that can fit in the work range
-			totalDuration := workRange.Duration()
-			numRanges := int(totalDuration / duration)
-			if numRanges == 0 {
-				continue
-			}
-
-			// Generate ranges
-			start := workRange.Start
-			for range numRanges {
-				end := start.Add(duration)
-				if end.After(workRange.End) {
-					break
-				}
-				ranges = append(ranges, &Range{
-					Start: start,
-					End:   end,
-				})
-				start = end
-			}
-		}
-	}
-
-	// Shuffle the ranges
-	for i := range ranges {
-		j := rand.Intn(i + 1)
-		ranges[i], ranges[j] = ranges[j], ranges[i]
-	}
-
-	// Sort by decreasing length
-	sort.Sort(byDecreasingLength(ranges))
-
-	return ranges
-}
-
-type byDecreasingLength []*Range
-
-func (a byDecreasingLength) Len() int      { return len(a) }
-func (a byDecreasingLength) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a byDecreasingLength) Less(i, j int) bool {
-	return a[j].Minutes() < a[i].Minutes()
-}
-
-// HaveIntersection checks if two ranges overlap
-func HaveIntersection(range1 *Range, range2 *Range) bool {
-	return range1.End.After(range2.Start) && range2.End.After(range1.Start)
 }

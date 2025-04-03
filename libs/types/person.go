@@ -9,12 +9,11 @@ import (
 
 // Person represents a person who can participate in review sessions
 type Person struct {
-	Email                           string   `yaml:"email"`
-	IsGoodReviewer                  bool     `yaml:"isgoodreviewer"`
-	MaxSessionsPerWeek              int      `yaml:"maxsessionsperweek"`
-	Skills                          []string `yaml:"skills"`
-	isSessionCompatibleSessionCount int      `yaml:"-"`
-	sessionCount                    int
+	Email              string   `yaml:"email"`
+	IsGoodReviewer     bool     `yaml:"isgoodreviewer"`
+	MaxSessionsPerWeek int      `yaml:"maxsessionsperweek"`
+	Skills             []string `yaml:"skills"`
+	sessionCount       int
 }
 
 // Validate checks if the person's data is valid
