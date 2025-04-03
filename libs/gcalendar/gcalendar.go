@@ -1,9 +1,10 @@
 package gcalendar
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"matchmaker/libs"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"net/http"
 	"net/url"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
@@ -129,7 +129,7 @@ func saveToken(file string, token *oauth2.Token) {
 }
 
 // GetBusyTimes retrieves busy time slots for a person within a given time range
-func GetBusyTimes(cal *calendar.Service, person *libs.Person, timeRange *libs.Range) ([]*libs.BusyTime, error) {
+func GetBusyTimes(cal *calendar.Service, person *types.Person, timeRange *types.Range) ([]*types.BusyTime, error) {
 	util.LogInfo("Loading busy detail", map[string]interface{}{
 		"person": person.Email,
 		"start":  timeRange.Start,
@@ -149,7 +149,7 @@ func GetBusyTimes(cal *calendar.Service, person *libs.Person, timeRange *libs.Ra
 		return nil, fmt.Errorf("can't retrieve free/busy data for %s: %w", person.Email, err)
 	}
 
-	busyTimes := make([]*libs.BusyTime, 0)
+	busyTimes := make([]*types.BusyTime, 0)
 	busyTimePeriods := result.Calendars[person.Email].Busy
 	util.LogInfo("Person busy times", map[string]interface{}{
 		"person": person.Email,
@@ -160,9 +160,9 @@ func GetBusyTimes(cal *calendar.Service, person *libs.Person, timeRange *libs.Ra
 			"start": busyTimePeriod.Start,
 			"end":   busyTimePeriod.End,
 		})
-		busyTimes = append(busyTimes, &libs.BusyTime{
+		busyTimes = append(busyTimes, &types.BusyTime{
 			Person: person,
-			Range: &libs.Range{
+			Range: &types.Range{
 				Start: parseTime(busyTimePeriod.Start),
 				End:   parseTime(busyTimePeriod.End),
 			},

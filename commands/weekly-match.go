@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/libs/timeutil"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"math/rand"
 	"os"
@@ -54,9 +54,9 @@ Then schedule pairing sessions for each tuple across consecutive weeks. The outp
 	},
 }
 
-func loadAndFilterPeople(groupFile string) []*libs.Person {
+func loadAndFilterPeople(groupFile string) []*types.Person {
 	groupPath := filepath.Join("groups", groupFile)
-	people, err := libs.LoadPersons(groupPath)
+	people, err := types.LoadPersons(groupPath)
 	util.PanicOnError(err, "Cannot load people file")
 	util.LogInfo("People file loaded", map[string]interface{}{
 		"count": len(people),
@@ -64,7 +64,7 @@ func loadAndFilterPeople(groupFile string) []*libs.Person {
 	})
 
 	// Filter out people with maxSessionsPerWeek = 0
-	availablePeople := make([]*libs.Person, 0)
+	availablePeople := make([]*types.Person, 0)
 	for _, person := range people {
 		if person.MaxSessionsPerWeek > 0 {
 			availablePeople = append(availablePeople, person)
@@ -78,10 +78,10 @@ func loadAndFilterPeople(groupFile string) []*libs.Person {
 	return availablePeople
 }
 
-func createRandomPairs(availablePeople []*libs.Person) libs.Tuples {
-	tuples := libs.Tuples{
-		Pairs:          make([]libs.Tuple, 0),
-		UnpairedPeople: make([]*libs.Person, 0),
+func createRandomPairs(availablePeople []*types.Person) types.Tuples {
+	tuples := types.Tuples{
+		Pairs:          make([]types.Tuple, 0),
+		UnpairedPeople: make([]*types.Person, 0),
 	}
 
 	// Create a local random generator
@@ -94,7 +94,7 @@ func createRandomPairs(availablePeople []*libs.Person) libs.Tuples {
 	})
 
 	// Create pairs with no common skills
-	used := make(map[*libs.Person]bool)
+	used := make(map[*types.Person]bool)
 	for i, person1 := range availablePeople {
 		if used[person1] {
 			continue
@@ -110,7 +110,7 @@ func createRandomPairs(availablePeople []*libs.Person) libs.Tuples {
 			// Check if they have no common skills
 			commonSkills := util.Intersection(person1.Skills, person2.Skills)
 			if len(commonSkills) == 0 {
-				tuples.Pairs = append(tuples.Pairs, libs.Tuple{
+				tuples.Pairs = append(tuples.Pairs, types.Tuple{
 					Person1: person1,
 					Person2: person2,
 				})
@@ -134,13 +134,13 @@ func createRandomPairs(availablePeople []*libs.Person) libs.Tuples {
 	return tuples
 }
 
-func processTuplesAndCreateSessions(tuples libs.Tuples, cal *calendar.Service) (*libs.Solution, []libs.Tuple, []*libs.Person) {
-	combinedSolution := &libs.Solution{
-		Sessions: make([]*libs.ReviewSession, 0),
+func processTuplesAndCreateSessions(tuples types.Tuples, cal *calendar.Service) (*types.Solution, []types.Tuple, []*types.Person) {
+	combinedSolution := &types.Solution{
+		Sessions: make([]*types.ReviewSession, 0),
 	}
 
-	allUnmatchedTuples := make([]libs.Tuple, 0)
-	allUnmatchedPeople := make([]*libs.Person, 0)
+	allUnmatchedTuples := make([]types.Tuple, 0)
+	allUnmatchedPeople := make([]*types.Person, 0)
 	allUnmatchedPeople = append(allUnmatchedPeople, tuples.UnpairedPeople...)
 
 	for i, tuple := range tuples.Pairs {
@@ -153,17 +153,19 @@ func processTuplesAndCreateSessions(tuples libs.Tuples, cal *calendar.Service) (
 		})
 
 		beginOfWeek := timeutil.FirstDayOfISOWeek(weekShift)
-		workRanges := timeutil.ToSlice(timeutil.GetWeekWorkRanges(beginOfWeek))
+		workRangesChan, err := timeutil.GetWeekWorkRanges(beginOfWeek)
+		util.PanicOnError(err, "Failed to get work ranges")
+		workRanges := timeutil.ToSlice(workRangesChan)
 		busyTimes := getBusyTimesForTuple(tuple, workRanges, cal)
 
-		problem := &libs.Problem{
-			People:         []*libs.Person{tuple.Person1, tuple.Person2},
+		problem := &types.Problem{
+			People:         []*types.Person{tuple.Person1, tuple.Person2},
 			WorkRanges:     workRanges,
 			BusyTimes:      busyTimes,
 			TargetCoverage: 0,
 		}
 
-		solution := libs.WeeklySolve(problem)
+		solution := types.WeeklySolve(problem)
 
 		if len(solution.Solution.Sessions) > 0 {
 			combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Solution.Sessions[0])
@@ -190,9 +192,9 @@ func processTuplesAndCreateSessions(tuples libs.Tuples, cal *calendar.Service) (
 	return combinedSolution, allUnmatchedTuples, allUnmatchedPeople
 }
 
-func getBusyTimesForTuple(tuple libs.Tuple, workRanges []*libs.Range, cal *calendar.Service) []*libs.BusyTime {
-	busyTimes := []*libs.BusyTime{}
-	tuplePeople := []*libs.Person{tuple.Person1, tuple.Person2}
+func getBusyTimesForTuple(tuple types.Tuple, workRanges []*types.Range, cal *calendar.Service) []*types.BusyTime {
+	busyTimes := []*types.BusyTime{}
+	tuplePeople := []*types.Person{tuple.Person1, tuple.Person2}
 
 	for _, person := range tuplePeople {
 		for _, workRange := range workRanges {
@@ -205,7 +207,7 @@ func getBusyTimesForTuple(tuple libs.Tuple, workRanges []*libs.Range, cal *calen
 	return busyTimes
 }
 
-func outputResults(combinedSolution *libs.Solution, tuples libs.Tuples, allUnmatchedTuples []libs.Tuple, allUnmatchedPeople []*libs.Person) {
+func outputResults(combinedSolution *types.Solution, tuples types.Tuples, allUnmatchedTuples []types.Tuple, allUnmatchedPeople []*types.Person) {
 	// Print summary of all sessions
 	util.LogInfo("Weekly match process completed", map[string]interface{}{
 		"totalPairs":      len(tuples.Pairs),

@@ -2,8 +2,8 @@ package commands
 
 import (
 	"fmt"
-	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"os"
 
@@ -15,8 +15,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func LoadPlan(yml []byte) (*libs.Solution, error) {
-	var solution *libs.Solution
+func LoadPlan(yml []byte) (*types.Solution, error) {
+	var solution *types.Solution
 	err := yaml.Unmarshal(yml, &solution)
 	if err != nil {
 		return nil, err

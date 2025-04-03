@@ -1,9 +1,9 @@
 package commands
 
 import (
-	"matchmaker/libs"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/libs/timeutil"
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"os"
 	"path/filepath"
@@ -11,9 +11,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func loadProblem(weekShift int, groupFile string) *libs.Problem {
+func loadProblem(weekShift int, groupFile string) *types.Problem {
 	groupPath := filepath.Join("groups", groupFile)
-	people, err := libs.LoadPersons(groupPath)
+	people, err := types.LoadPersons(groupPath)
 	util.PanicOnError(err, "Cannot load people file")
 	util.LogInfo("People file loaded", map[string]interface{}{
 		"count": len(people),
@@ -21,31 +21,32 @@ func loadProblem(weekShift int, groupFile string) *libs.Problem {
 	})
 
 	cal, err := gcalendar.GetGoogleCalendarService()
-	util.PanicOnError(err, "Can't get Google Calendar client")
-	util.LogInfo("Connected to google calendar", nil)
+	util.PanicOnError(err, "Cannot connect to Google Calendar")
+	util.LogInfo("Connected to Google Calendar", nil)
 
-	beginOfWeek := timeutil.FirstDayOfISOWeek(weekShift)
-	util.LogInfo("Planning for week", map[string]interface{}{
-		"weekFirstDay": beginOfWeek,
-	})
+	firstDay := timeutil.FirstDayOfISOWeek(weekShift)
+	workRangesChan, err := timeutil.GetWeekWorkRanges(firstDay)
+	util.PanicOnError(err, "Failed to get work ranges")
+	workRanges := timeutil.ToSlice(workRangesChan)
 
-	workRanges := timeutil.ToSlice(timeutil.GetWeekWorkRanges(beginOfWeek))
-	busyTimes := []*libs.BusyTime{}
+	busyTimes := []*types.BusyTime{}
 	for _, person := range people {
-		if person.MaxSessionsPerWeek == 0 {
+		if !person.CanParticipateInSession() {
 			continue
 		}
 		for _, workRange := range workRanges {
 			personBusyTimes, err := gcalendar.GetBusyTimes(cal, person, workRange)
-			util.PanicOnError(err, "Failed to get busy times")
+			util.PanicOnError(err, "Cannot load busy times for person")
 			busyTimes = append(busyTimes, personBusyTimes...)
 		}
 	}
-	return &libs.Problem{
-		People:         people,
-		WorkRanges:     workRanges,
-		BusyTimes:      busyTimes,
-		TargetCoverage: 2,
+
+	return &types.Problem{
+		People:           people,
+		WorkRanges:       workRanges,
+		BusyTimes:        busyTimes,
+		TargetCoverage:   1,
+		MaxTotalCoverage: 2,
 	}
 }
 

@@ -1,12 +1,14 @@
-package libs
+package types
 
 import (
-	"github.com/spf13/viper"
 	"math/rand"
 	"sort"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
+// Range represents a time range
 type Range struct {
 	Start time.Time
 	End   time.Time
@@ -19,12 +21,13 @@ func (r *Range) Pad(padding time.Duration) *Range {
 	}
 }
 
+// Minutes returns the duration of the range in minutes
 func (r *Range) Minutes() float64 {
 	return r.End.Sub(r.Start).Minutes()
 }
 
-func generateTimeRanges(workRanges []*Range) []*Range {
-
+// GenerateTimeRanges generates time ranges for the given work ranges
+func GenerateTimeRanges(workRanges []*Range) []*Range {
 	defaultDuration := viper.GetDuration("sessions.sessionDurationMinutes")
 	var durations = []time.Duration{
 		defaultDuration * time.Minute,
@@ -38,7 +41,7 @@ func generateTimeRanges(workRanges []*Range) []*Range {
 					Start: start,
 					End:   start.Add(duration),
 				})
-				start = start.Add(30 * time.Minute)
+				start = start.Add(duration)
 			}
 		}
 	}
@@ -59,4 +62,9 @@ func (a byDecreasingLength) Len() int      { return len(a) }
 func (a byDecreasingLength) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a byDecreasingLength) Less(i, j int) bool {
 	return a[j].Minutes() < a[i].Minutes()
+}
+
+// HaveIntersection checks if two ranges overlap
+func HaveIntersection(range1 *Range, range2 *Range) bool {
+	return range1.End.After(range2.Start) && range2.End.After(range1.Start)
 }

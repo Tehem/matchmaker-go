@@ -1,6 +1,7 @@
-package libs
+package solver
 
 import (
+	"matchmaker/libs/types"
 	"matchmaker/util"
 	"time"
 
@@ -9,24 +10,24 @@ import (
 
 // WeeklySolveResult contains the result of the weekly solve operation
 type WeeklySolveResult struct {
-	Solution        *Solution
-	UnmatchedPeople []*Person
-	UnmatchedTuples []Tuple
+	Solution        *types.Solution
+	UnmatchedPeople []*types.Person
+	UnmatchedTuples []types.Tuple
 }
 
 // WeeklySolve finds a single session for a tuple of people in a specific week
-func WeeklySolve(problem *Problem) *WeeklySolveResult {
+func WeeklySolve(problem *types.Problem) *WeeklySolveResult {
 	// Generate squads for the tuple
 	squads := generateSquadsForTuple(problem.People, problem.BusyTimes)
 
 	// Generate time ranges for the week
-	ranges := generateTimeRanges(problem.WorkRanges)
+	ranges := types.GenerateTimeRanges(problem.WorkRanges)
 
 	// Generate possible sessions
-	sessions := generateSessions(squads, ranges)
+	sessions := types.GenerateSessions(squads, ranges)
 
 	// Find the best session (we only need one)
-	var bestSession *ReviewSession
+	var bestSession *types.ReviewSession
 	var bestScore int
 	firstValidScore := false
 
@@ -51,8 +52,8 @@ func WeeklySolve(problem *Problem) *WeeklySolveResult {
 	}
 
 	// Create a solution with the best session (if found)
-	solution := &Solution{
-		Sessions: make([]*ReviewSession, 0),
+	solution := &types.Solution{
+		Sessions: make([]*types.ReviewSession, 0),
 	}
 
 	if bestSession != nil {
@@ -62,14 +63,14 @@ func WeeklySolve(problem *Problem) *WeeklySolveResult {
 	// Create the result
 	result := &WeeklySolveResult{
 		Solution:        solution,
-		UnmatchedPeople: make([]*Person, 0),
-		UnmatchedTuples: make([]Tuple, 0),
+		UnmatchedPeople: make([]*types.Person, 0),
+		UnmatchedTuples: make([]types.Tuple, 0),
 	}
 
 	// If no session was found, add the tuple to unmatched tuples
 	if bestSession == nil && len(problem.People) == 2 {
 		// Create a tuple from the two people
-		tuple := Tuple{
+		tuple := types.Tuple{
 			Person1: problem.People[0],
 			Person2: problem.People[1],
 		}
@@ -80,26 +81,26 @@ func WeeklySolve(problem *Problem) *WeeklySolveResult {
 }
 
 // generateSquadsForTuple creates squads for a specific tuple of people
-func generateSquadsForTuple(people []*Person, busyTimes []*BusyTime) []*Squad {
+func generateSquadsForTuple(people []*types.Person, busyTimes []*types.BusyTime) []*types.Squad {
 	// For a tuple, we only need one squad with both people
 	if len(people) != 2 {
 		util.LogInfo("Warning: WeeklySolve expects exactly 2 people per tuple", map[string]interface{}{
 			"peopleCount": len(people),
 		})
-		return []*Squad{}
+		return []*types.Squad{}
 	}
 
-	squad := &Squad{
+	squad := &types.Squad{
 		People:     people,
 		BusyRanges: mergeBusyRanges(busyTimes, people),
 	}
 
-	return []*Squad{squad}
+	return []*types.Squad{squad}
 }
 
 // scoreSession assigns a score to a session based on how well it fits
 // Returns (score, isValid) where isValid indicates if the session is valid
-func scoreSession(session *ReviewSession, problem *Problem) (int, bool) {
+func scoreSession(session *types.ReviewSession, problem *types.Problem) (int, bool) {
 	// Check if the session conflicts with any busy times
 	if hasTimeConflict(session, problem.BusyTimes) {
 		return 0, false // Invalid session
@@ -121,7 +122,7 @@ func scoreSession(session *ReviewSession, problem *Problem) (int, bool) {
 }
 
 // hasTimeConflict checks if a session conflicts with any busy times
-func hasTimeConflict(session *ReviewSession, busyTimes []*BusyTime) bool {
+func hasTimeConflict(session *types.ReviewSession, busyTimes []*types.BusyTime) bool {
 	for _, busyTime := range busyTimes {
 		if haveIntersection(session.Range, busyTime.Range) {
 			return true
