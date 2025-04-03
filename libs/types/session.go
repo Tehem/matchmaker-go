@@ -7,7 +7,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-// ReviewSession represents a review session between two people
+// ReviewSession represents a review session
 type ReviewSession struct {
 	Reviewers *Squad
 	Range     *Range
@@ -32,15 +32,12 @@ func (s *ReviewSession) GetDisplayName() string {
 // Validate checks if the session is valid
 func (s *ReviewSession) Validate() error {
 	if s.Reviewers == nil {
-		return fmt.Errorf("reviewers are required")
+		return fmt.Errorf("reviewers cannot be nil")
 	}
 	if s.Range == nil {
-		return fmt.Errorf("time range is required")
+		return fmt.Errorf("range cannot be nil")
 	}
-	if err := s.Reviewers.Validate(); err != nil {
-		return fmt.Errorf("invalid reviewers: %w", err)
-	}
-	return nil
+	return s.Reviewers.Validate()
 }
 
 // Squad represents a pair of reviewers
@@ -54,57 +51,18 @@ func (s *Squad) Validate() error {
 	if len(s.People) != 2 {
 		return fmt.Errorf("squad must have exactly 2 people")
 	}
-	for _, person := range s.People {
-		if person == nil {
-			return fmt.Errorf("person cannot be nil")
-		}
-		if err := person.Validate(); err != nil {
-			return fmt.Errorf("invalid person: %w", err)
-		}
+	if s.People[0] == nil || s.People[1] == nil {
+		return fmt.Errorf("people cannot be nil")
 	}
 	return nil
 }
 
 // GetDisplayName returns a display name for the squad
 func (s *Squad) GetDisplayName() string {
-	if len(s.People) != 2 {
-		return "Invalid Squad"
-	}
-	return fmt.Sprintf("%s / %s", s.People[0].Email, s.People[1].Email)
+	return fmt.Sprintf("%s & %s", s.People[0].Email, s.People[1].Email)
 }
 
-// GenerateSessions generates all possible sessions for the given squads and ranges
-func GenerateSessions(squads []*Squad, ranges []*Range) []*ReviewSession {
-	sessions := []*ReviewSession{}
-	for _, currentRange := range ranges {
-		for _, squad := range squads {
-			sessionPossible := true
-
-			for _, busyRange := range squad.BusyRanges {
-				if HaveIntersection(currentRange, busyRange) {
-					sessionPossible = false
-					break
-				}
-			}
-
-			if sessionPossible {
-				sessions = append(sessions, &ReviewSession{
-					Reviewers: squad,
-					Range:     currentRange,
-				})
-			}
-		}
-	}
-	return sessions
-}
-
-// ByStart is a type for sorting sessions by start time
-type ByStart []*ReviewSession
-
-func (a ByStart) Len() int      { return len(a) }
-func (a ByStart) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByStart) Less(i, j int) bool {
-	iStart := a[i].Start()
-	jStart := a[j].Start()
-	return iStart.Before(jStart)
+// DisplayName returns a display name for the squad
+func (s *Squad) DisplayName() string {
+	return fmt.Sprintf("%s & %s", s.People[0].Email, s.People[1].Email)
 }

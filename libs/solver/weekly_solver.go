@@ -21,10 +21,10 @@ func WeeklySolve(problem *types.Problem) *WeeklySolveResult {
 	squads := generateSquadsForTuple(problem.People, problem.BusyTimes)
 
 	// Generate time ranges for the week
-	ranges := types.GenerateTimeRanges(problem.WorkRanges)
+	ranges := GenerateTimeRanges(problem.WorkRanges)
 
 	// Generate possible sessions
-	sessions := types.GenerateSessions(squads, ranges)
+	sessions := GenerateSessions(squads, ranges)
 
 	// Find the best session (we only need one)
 	var bestSession *types.ReviewSession

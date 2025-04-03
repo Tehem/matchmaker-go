@@ -104,6 +104,32 @@ This command takes input from a planning file and creates review events in revie
   - Use `weekly-planning.yml` if it's the only file present
   - Ask which file to use if both are present
 - You can also specify a file directly: `matchmaker plan my-planning.yml`
+- Each run generates a unique batch ID and saves it to a file in the `batches` directory
+- The batch file contains information about all created events for potential rollback
+
+### ↩️ Rollback
+```bash
+matchmaker rollback [batch-id]
+```
+
+This command allows you to delete all events created in a specific batch.
+
+- If no batch ID is provided, the command will prompt for one
+- The batch ID is displayed at the end of the `plan` command
+- Deletes all events in the specified batch
+- Provides detailed logging of the deletion process
+- Shows a summary of successful and failed deletions
+- Offers to delete the batch file if all events were successfully deleted
+
+Example:
+```bash
+# With batch ID as argument
+matchmaker rollback 123e4567-e89b-12d3-a456-426614174000
+
+# Or interactively
+matchmaker rollback
+Enter batch ID: 123e4567-e89b-12d3-a456-426614174000
+```
 
 ### 🔄 Weekly Match
 ```bash
