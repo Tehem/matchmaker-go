@@ -46,23 +46,6 @@ type SerializedProblem struct {
 	TargetCoverage int
 }
 
-// WeeklySolveResult represents the result of a weekly solve operation
-type WeeklySolveResult struct {
-	Solution        *Solution
-	UnmatchedTuples []Tuple
-	UnmatchedPeople []*Person
-}
-
-// WeeklySolve solves a problem for a week
-func WeeklySolve(problem *Problem) *WeeklySolveResult {
-	// TODO: Implement weekly solve logic
-	return &WeeklySolveResult{
-		Solution:        &Solution{},
-		UnmatchedTuples: []Tuple{},
-		UnmatchedPeople: []*Person{},
-	}
-}
-
 func (problem *Problem) ToYaml() ([]byte, error) {
 	serializedBusyTimes := make([]*SerializedBusyTime, len(problem.BusyTimes))
 	for i, busyTime := range problem.BusyTimes {

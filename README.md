@@ -43,6 +43,54 @@ go get -u
 go mod tidy
 ```
 
+## 🧪 Testing
+
+The project includes comprehensive tests to ensure code quality and functionality. Here are the main test commands:
+
+### Run All Tests
+```bash
+go test ./...
+```
+
+### Run Tests with Verbose Output
+```bash
+go test -v ./...
+```
+
+### Run Tests with Coverage
+```bash
+go test -cover ./...
+```
+
+### Run Tests in a Specific Package
+```bash
+go test ./libs/types
+```
+
+### Run a Specific Test Function
+```bash
+go test ./libs/types -run TestSquad
+```
+
+### Run Tests with Race Detection
+```bash
+go test -race ./...
+```
+
+### Generate and View Coverage Report
+```bash
+# Generate coverage profile
+go test -coverprofile=coverage.out ./...
+
+# View coverage report in browser
+go tool cover -html=coverage.out
+```
+
+### Run Tests with Timeout
+```bash
+go test -timeout 30s ./...
+```
+
 ## ⚙️ Setup
 
 You need to create/retrieve a group file `groups/group.yml` containing people configuration for review.
@@ -104,6 +152,32 @@ This command takes input from a planning file and creates review events in revie
   - Use `weekly-planning.yml` if it's the only file present
   - Ask which file to use if both are present
 - You can also specify a file directly: `matchmaker plan my-planning.yml`
+- Each run generates a unique batch ID and saves it to a file in the `batches` directory
+- The batch file contains information about all created events for potential rollback
+
+### ↩️ Rollback
+```bash
+matchmaker rollback [batch-id]
+```
+
+This command allows you to delete all events created in a specific batch.
+
+- If no batch ID is provided, the command will prompt for one
+- The batch ID is displayed at the end of the `plan` command
+- Deletes all events in the specified batch
+- Provides detailed logging of the deletion process
+- Shows a summary of successful and failed deletions
+- Offers to delete the batch file if all events were successfully deleted
+
+Example:
+```bash
+# With batch ID as argument
+matchmaker rollback 123e4567-e89b-12d3-a456-426614174000
+
+# Or interactively
+matchmaker rollback
+Enter batch ID: 123e4567-e89b-12d3-a456-426614174000
+```
 
 ### 🔄 Weekly Match
 ```bash

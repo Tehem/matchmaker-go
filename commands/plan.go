@@ -1,11 +1,14 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/libs/types"
 	"matchmaker/util"
 	"os"
+	"path/filepath"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/sirupsen/logrus"
@@ -105,6 +108,13 @@ If no file is specified, the command will:
 		solution, err := LoadPlan(yml)
 		util.PanicOnError(err, "Can't get solution from planning file")
 
+		// Create a new batch for this run
+		batch := types.EventBatch{
+			ID:        uuid.New().String(),
+			CreatedAt: time.Now().Format(time.RFC3339),
+			Events:    make([]types.Event, 0),
+		}
+
 		// calendar owner
 		masterEmail := viper.GetString("organizerEmail")
 
@@ -154,9 +164,33 @@ If no file is specified, the command will:
 				},
 			}
 
-			_, err := cal.Events.Insert(organizer, event).ConferenceDataVersion(1).Do()
+			createdEvent, err := cal.Events.Insert(organizer, event).ConferenceDataVersion(1).Do()
 			util.PanicOnError(err, "Can't create event")
 			logrus.Info("✔ " + session.GetDisplayName())
+
+			// Track the created event
+			batch.Events = append(batch.Events, types.Event{
+				ID:        createdEvent.Id,
+				Summary:   createdEvent.Summary,
+				Organizer: organizer,
+			})
+		}
+
+		// Save the batch to a file
+		batchFile := filepath.Join("batches", fmt.Sprintf("batch-%s.json", batch.ID))
+		if err := os.MkdirAll("batches", 0755); err != nil {
+			logrus.Warnf("Failed to create batches directory: %v", err)
+		} else {
+			data, err := json.MarshalIndent(batch, "", "  ")
+			if err != nil {
+				logrus.Warnf("Failed to marshal batch data: %v", err)
+			} else {
+				if err := os.WriteFile(batchFile, data, 0644); err != nil {
+					logrus.Warnf("Failed to save batch file: %v", err)
+				} else {
+					logrus.Infof("Created %d events. Batch file saved to: %s", len(batch.Events), batchFile)
+				}
+			}
 		}
 	},
 }

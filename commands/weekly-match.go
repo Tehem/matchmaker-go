@@ -2,6 +2,7 @@ package commands
 
 import (
 	"matchmaker/libs/gcalendar"
+	"matchmaker/libs/solver"
 	"matchmaker/libs/timeutil"
 	"matchmaker/libs/types"
 	"matchmaker/util"
@@ -165,7 +166,27 @@ func processTuplesAndCreateSessions(tuples types.Tuples, cal *calendar.Service) 
 			TargetCoverage: 0,
 		}
 
-		solution := types.WeeklySolve(problem)
+		// output problem in a human readable format
+		util.LogInfo("Problem details", map[string]interface{}{
+			"people": []string{problem.People[0].Email, problem.People[1].Email},
+			"workRanges": []string{
+				problem.WorkRanges[0].Start.Format(time.RFC3339),
+				problem.WorkRanges[0].End.Format(time.RFC3339),
+			},
+			"numBusyTimes": len(problem.BusyTimes),
+		})
+
+		// Log busy time details
+		for i, busyTime := range problem.BusyTimes {
+			util.LogInfo("Busy time", map[string]interface{}{
+				"index":  i,
+				"start":  busyTime.Range.Start.Format(time.RFC3339),
+				"end":    busyTime.Range.End.Format(time.RFC3339),
+				"person": busyTime.Person.Email,
+			})
+		}
+
+		solution := solver.WeeklySolve(problem)
 
 		if len(solution.Solution.Sessions) > 0 {
 			combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Solution.Sessions[0])

@@ -30,7 +30,7 @@ type Solution struct {
 func Solve(problem *types.Problem) *Solution {
 	squads := generateSquads(problem.People, problem.BusyTimes)
 	ranges := types.GenerateTimeRanges(problem.WorkRanges)
-	sessions := types.GenerateSessions(squads, ranges)
+	sessions := GenerateSessions(squads, ranges)
 
 	printSquads(squads)
 	printRanges(ranges)
@@ -52,7 +52,7 @@ func Solve(problem *types.Problem) *Solution {
 		"maxCoverage":          maxCoverage,
 	})
 
-	sort.Sort(types.ByStart(solution.Sessions))
+	sort.Sort(ByStart(solution.Sessions))
 
 	printSessions(solution.Sessions)
 
