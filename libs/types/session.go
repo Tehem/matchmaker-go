@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/spf13/viper"
@@ -59,10 +60,7 @@ func (s *Squad) Validate() error {
 
 // GetDisplayName returns a display name for the squad
 func (s *Squad) GetDisplayName() string {
-	return fmt.Sprintf("%s & %s", s.People[0].Email, s.People[1].Email)
-}
-
-// DisplayName returns a display name for the squad
-func (s *Squad) DisplayName() string {
-	return fmt.Sprintf("%s & %s", s.People[0].Email, s.People[1].Email)
+	person1 := strings.Split(s.People[0].Email, "@")[0]
+	person2 := strings.Split(s.People[1].Email, "@")[0]
+	return fmt.Sprintf("%s & %s", person1, person2)
 }
