@@ -21,10 +21,10 @@ func WeeklySolve(problem *types.Problem) *WeeklySolveResult {
 	squads := generateSquadsForTuple(problem.People, problem.BusyTimes)
 
 	// Generate time ranges for the week
-	ranges := GenerateTimeRanges(problem.WorkRanges)
+	ranges := types.GenerateTimeRanges(problem.WorkRanges)
 
 	// Generate possible sessions
-	sessions := GenerateSessions(squads, ranges)
+	sessions := types.GenerateSessions(squads, ranges)
 
 	// Find the best session (we only need one)
 	var bestSession *types.ReviewSession
@@ -261,4 +261,22 @@ func calculateDayScore(startTime time.Time) int {
 	}
 
 	return score
+}
+
+// FindSessionForTuple finds a session for a tuple of people in a specific week
+func FindSessionForTuple(tuple types.Tuple, workRanges []*types.Range, busyTimes []*types.BusyTime) *types.ReviewSession {
+	// Create a problem for the tuple
+	problem := &types.Problem{
+		People:         []*types.Person{tuple.Person1, tuple.Person2},
+		WorkRanges:     workRanges,
+		BusyTimes:      busyTimes,
+		TargetCoverage: 0,
+	}
+
+	// Find a session using the weekly solver
+	result := WeeklySolve(problem)
+	if len(result.Solution.Sessions) > 0 {
+		return result.Solution.Sessions[0]
+	}
+	return nil
 }

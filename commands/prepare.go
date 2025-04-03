@@ -20,7 +20,7 @@ func loadProblem(weekShift int, groupFile string) *types.Problem {
 		"file":  groupPath,
 	})
 
-	cal, err := gcalendar.GetGoogleCalendarService()
+	cal, err := gcalendar.NewGCalendar()
 	util.PanicOnError(err, "Cannot connect to Google Calendar")
 	util.LogInfo("Connected to Google Calendar", nil)
 
@@ -29,17 +29,7 @@ func loadProblem(weekShift int, groupFile string) *types.Problem {
 	util.PanicOnError(err, "Failed to get work ranges")
 	workRanges := timeutil.ToSlice(workRangesChan)
 
-	busyTimes := []*types.BusyTime{}
-	for _, person := range people {
-		if !person.CanParticipateInSession() {
-			continue
-		}
-		for _, workRange := range workRanges {
-			personBusyTimes, err := gcalendar.GetBusyTimes(cal, person, workRange)
-			util.PanicOnError(err, "Cannot load busy times for person")
-			busyTimes = append(busyTimes, personBusyTimes...)
-		}
-	}
+	busyTimes := cal.GetBusyTimesForPeople(people, workRanges)
 
 	return &types.Problem{
 		People:           people,

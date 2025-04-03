@@ -1,8 +1,7 @@
-package solver
+package types
 
 import (
 	"matchmaker/libs/testutils"
-	"matchmaker/libs/types"
 	"sort"
 	"testing"
 	"time"
@@ -15,19 +14,19 @@ func TestGenerateSessions(t *testing.T) {
 	defer configMock.Restore()
 
 	// Create test persons
-	person1 := &types.Person{Email: "person1@example.com"}
-	person2 := &types.Person{Email: "person2@example.com"}
+	person1 := &Person{Email: "person1@example.com"}
+	person2 := &Person{Email: "person2@example.com"}
 
 	// Create test squads
-	squads := []*types.Squad{
+	squads := []*Squad{
 		{
-			People: []*types.Person{person1, person2},
+			People: []*Person{person1, person2},
 		},
 	}
 
 	// Create test time ranges
 	start := time.Date(2024, 4, 1, 9, 0, 0, 0, time.UTC)
-	ranges := []*types.Range{
+	ranges := []*Range{
 		{
 			Start: start,
 			End:   start.Add(time.Hour),
@@ -39,7 +38,7 @@ func TestGenerateSessions(t *testing.T) {
 	}
 
 	// Generate sessions
-	sessions := types.GenerateSessions(squads, ranges)
+	sessions := GenerateSessions(squads, ranges)
 
 	// Verify the results
 	expectedSessions := len(squads) * len(ranges)
@@ -66,21 +65,21 @@ func TestGenerateSessions(t *testing.T) {
 func TestByStart(t *testing.T) {
 	// Create test sessions
 	start := time.Date(2024, 4, 1, 9, 0, 0, 0, time.UTC)
-	sessions := []*types.ReviewSession{
+	sessions := []*ReviewSession{
 		{
-			Range: &types.Range{
+			Range: &Range{
 				Start: start.Add(2 * time.Hour),
 				End:   start.Add(3 * time.Hour),
 			},
 		},
 		{
-			Range: &types.Range{
+			Range: &Range{
 				Start: start,
 				End:   start.Add(time.Hour),
 			},
 		},
 		{
-			Range: &types.Range{
+			Range: &Range{
 				Start: start.Add(time.Hour),
 				End:   start.Add(2 * time.Hour),
 			},
@@ -88,7 +87,7 @@ func TestByStart(t *testing.T) {
 	}
 
 	// Sort sessions
-	sort.Sort(types.ByStart(sessions))
+	sort.Sort(ByStart(sessions))
 
 	// Verify that sessions are sorted by start time
 	for i := 1; i < len(sessions); i++ {

@@ -198,19 +198,19 @@ func TestMergeRanges(t *testing.T) {
 	}
 
 	// Test with no ranges
-	merged := mergeRanges([]*types.Range{})
+	merged := types.MergeRanges([]*types.Range{})
 	if len(merged) != 0 {
 		t.Errorf("mergeRanges() returned %d ranges, want 0", len(merged))
 	}
 
 	// Test with one range
-	merged = mergeRanges([]*types.Range{range1})
+	merged = types.MergeRanges([]*types.Range{range1})
 	if len(merged) != 1 {
 		t.Errorf("mergeRanges() returned %d ranges, want 1", len(merged))
 	}
 
 	// Test with overlapping ranges
-	merged = mergeRanges([]*types.Range{range1, range2, range3})
+	merged = types.MergeRanges([]*types.Range{range1, range2, range3})
 
 	// Verify that we got the correct number of ranges
 	// Expected: 2 ranges (merged range1 and range2, and range3)
@@ -253,13 +253,13 @@ func TestHaveIntersection(t *testing.T) {
 	}
 
 	// Test with overlapping ranges
-	if !haveIntersection(range1, range2) {
-		t.Error("haveIntersection() returned false for overlapping ranges")
+	if !range1.Overlaps(range2) {
+		t.Error("Overlaps() returned false for overlapping ranges")
 	}
 
 	// Test with non-overlapping ranges
-	if haveIntersection(range1, range3) {
-		t.Error("haveIntersection() returned true for non-overlapping ranges")
+	if range1.Overlaps(range3) {
+		t.Error("Overlaps() returned true for non-overlapping ranges")
 	}
 
 	// Test with adjacent ranges
@@ -267,7 +267,7 @@ func TestHaveIntersection(t *testing.T) {
 		Start: start.Add(4 * time.Hour),
 		End:   start.Add(6 * time.Hour),
 	}
-	if haveIntersection(range1, range4) {
-		t.Error("haveIntersection() returned true for adjacent ranges")
+	if range1.Overlaps(range4) {
+		t.Error("Overlaps() returned true for adjacent ranges")
 	}
 }

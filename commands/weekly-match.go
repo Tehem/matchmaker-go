@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"google.golang.org/api/calendar/v3"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,7 +42,7 @@ Then schedule pairing sessions for each tuple across consecutive weeks. The outp
 		tuples := createRandomPairs(availablePeople)
 
 		// Get Google Calendar service
-		cal, err := gcalendar.GetGoogleCalendarService()
+		cal, err := gcalendar.NewGCalendar()
 		util.PanicOnError(err, "Can't get Google Calendar client")
 		util.LogInfo("Connected to Google Calendar", nil)
 
@@ -135,7 +134,7 @@ func createRandomPairs(availablePeople []*types.Person) types.Tuples {
 	return tuples
 }
 
-func processTuplesAndCreateSessions(tuples types.Tuples, cal *calendar.Service) (*types.Solution, []types.Tuple, []*types.Person) {
+func processTuplesAndCreateSessions(tuples types.Tuples, cal *gcalendar.GCalendar) (*types.Solution, []types.Tuple, []*types.Person) {
 	combinedSolution := &types.Solution{
 		Sessions: make([]*types.ReviewSession, 0),
 	}
@@ -159,25 +158,18 @@ func processTuplesAndCreateSessions(tuples types.Tuples, cal *calendar.Service) 
 		workRanges := timeutil.ToSlice(workRangesChan)
 		busyTimes := getBusyTimesForTuple(tuple, workRanges, cal)
 
-		problem := &types.Problem{
-			People:         []*types.Person{tuple.Person1, tuple.Person2},
-			WorkRanges:     workRanges,
-			BusyTimes:      busyTimes,
-			TargetCoverage: 0,
-		}
-
-		// output problem in a human readable format
+		// Log problem details
 		util.LogInfo("Problem details", map[string]interface{}{
-			"people": []string{problem.People[0].Email, problem.People[1].Email},
+			"people": []string{tuple.Person1.Email, tuple.Person2.Email},
 			"workRanges": []string{
-				problem.WorkRanges[0].Start.Format(time.RFC3339),
-				problem.WorkRanges[0].End.Format(time.RFC3339),
+				workRanges[0].Start.Format(time.RFC3339),
+				workRanges[0].End.Format(time.RFC3339),
 			},
-			"numBusyTimes": len(problem.BusyTimes),
+			"numBusyTimes": len(busyTimes),
 		})
 
 		// Log busy time details
-		for i, busyTime := range problem.BusyTimes {
+		for i, busyTime := range busyTimes {
 			util.LogInfo("Busy time", map[string]interface{}{
 				"index":  i,
 				"start":  busyTime.Range.Start.Format(time.RFC3339),
@@ -186,15 +178,15 @@ func processTuplesAndCreateSessions(tuples types.Tuples, cal *calendar.Service) 
 			})
 		}
 
-		solution := solver.WeeklySolve(problem)
+		session := solver.FindSessionForTuple(tuple, workRanges, busyTimes)
 
-		if len(solution.Solution.Sessions) > 0 {
-			combinedSolution.Sessions = append(combinedSolution.Sessions, solution.Solution.Sessions[0])
+		if session != nil {
+			combinedSolution.Sessions = append(combinedSolution.Sessions, session)
 			util.LogInfo("Added session for tuple", map[string]interface{}{
 				"tupleIndex":   i,
 				"weekShift":    weekShift,
-				"sessionStart": solution.Solution.Sessions[0].Start().Format(time.RFC3339),
-				"sessionEnd":   solution.Solution.Sessions[0].End().Format(time.RFC3339),
+				"sessionStart": session.Start().Format(time.RFC3339),
+				"sessionEnd":   session.End().Format(time.RFC3339),
 			})
 		} else {
 			util.LogInfo("No session found for tuple", map[string]interface{}{
@@ -202,30 +194,18 @@ func processTuplesAndCreateSessions(tuples types.Tuples, cal *calendar.Service) 
 				"weekShift":  weekShift,
 			})
 
-			if len(solution.UnmatchedTuples) > 0 {
-				allUnmatchedTuples = append(allUnmatchedTuples, solution.UnmatchedTuples[0])
-				allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person1)
-				allUnmatchedPeople = append(allUnmatchedPeople, solution.UnmatchedTuples[0].Person2)
-			}
+			allUnmatchedTuples = append(allUnmatchedTuples, tuple)
+			allUnmatchedPeople = append(allUnmatchedPeople, tuple.Person1)
+			allUnmatchedPeople = append(allUnmatchedPeople, tuple.Person2)
 		}
 	}
 
 	return combinedSolution, allUnmatchedTuples, allUnmatchedPeople
 }
 
-func getBusyTimesForTuple(tuple types.Tuple, workRanges []*types.Range, cal *calendar.Service) []*types.BusyTime {
-	busyTimes := []*types.BusyTime{}
+func getBusyTimesForTuple(tuple types.Tuple, workRanges []*types.Range, cal *gcalendar.GCalendar) []*types.BusyTime {
 	tuplePeople := []*types.Person{tuple.Person1, tuple.Person2}
-
-	for _, person := range tuplePeople {
-		for _, workRange := range workRanges {
-			personBusyTimes, err := gcalendar.GetBusyTimes(cal, person, workRange)
-			util.PanicOnError(err, "Failed to get busy times")
-			busyTimes = append(busyTimes, personBusyTimes...)
-		}
-	}
-
-	return busyTimes
+	return cal.GetBusyTimesForPeople(tuplePeople, workRanges)
 }
 
 func outputResults(combinedSolution *types.Solution, tuples types.Tuples, allUnmatchedTuples []types.Tuple, allUnmatchedPeople []*types.Person) {
@@ -243,12 +223,7 @@ func outputResults(combinedSolution *types.Solution, tuples types.Tuples, allUnm
 		"count": len(combinedSolution.Sessions),
 	})
 	for _, session := range combinedSolution.Sessions {
-		util.LogInfo("Weekly session", map[string]interface{}{
-			"person1": session.Reviewers.People[0].Email,
-			"person2": session.Reviewers.People[1].Email,
-			"start":   session.Range.Start.Format(time.RFC3339),
-			"end":     session.Range.End.Format(time.RFC3339),
-		})
+		util.LogSession("Weekly session", session)
 	}
 
 	// Print unmatched tuples
