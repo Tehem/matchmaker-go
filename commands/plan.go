@@ -148,7 +148,7 @@ If no file is specified, the command will:
 					DateTime: gcalendar.FormatTime(session.Range.End),
 					TimeZone: viper.GetString("workingHours.timezone"),
 				},
-				Summary:         session.GetDisplayName(),
+				Summary:         session.GetEventSummary(),
 				Attendees:       attendees,
 				GuestsCanModify: true,
 				ConferenceData: &calendar.ConferenceData{
@@ -173,6 +173,8 @@ If no file is specified, the command will:
 				ID:        createdEvent.Id,
 				Summary:   createdEvent.Summary,
 				Organizer: organizer,
+				StartTime: session.Range.Start,
+				EndTime:   session.Range.End,
 			})
 		}
 
