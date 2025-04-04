@@ -102,7 +102,7 @@ If no file is specified, the command will:
 		yml, err := os.ReadFile(planningFile)
 		util.PanicOnError(err, "Can't read planning file")
 
-		cal, err := gcalendar.GetGoogleCalendarService()
+		cal, err := gcalendar.GetCalendarService()
 		util.PanicOnError(err, "Can't get gcalendar client")
 
 		solution, err := LoadPlan(yml)

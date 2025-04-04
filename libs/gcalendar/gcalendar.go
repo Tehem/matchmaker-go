@@ -1,22 +1,12 @@
 package gcalendar
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"matchmaker/libs/types"
 	"matchmaker/util"
-	"net/http"
-	"net/url"
-	"os"
-	"os/user"
-	"path/filepath"
 	"time"
 
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/option"
 )
 
 // GCalendar represents a Google Calendar client
@@ -26,120 +16,176 @@ type GCalendar struct {
 
 // NewGCalendar creates a new GCalendar client
 func NewGCalendar() (*GCalendar, error) {
-	service, err := GetGoogleCalendarService()
+	service, err := GetCalendarService()
 	if err != nil {
 		return nil, err
 	}
 	return &GCalendar{service: service}, nil
 }
 
-func GetGoogleCalendarService() (*calendar.Service, error) {
-	ctx := context.Background()
-
-	b, err := os.ReadFile(filepath.Join("configs", "client_secret.json"))
-	if err != nil {
-		return nil, err
-	}
-
-	config, err := google.ConfigFromJSON(b, calendar.CalendarScope)
-	if err != nil {
-		return nil, err
-	}
-
-	client := GetHttpClient(ctx, config)
-	if client == nil {
-		return nil, fmt.Errorf("failed to create HTTP client")
-	}
-
-	srv, err := calendar.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		return nil, err
-	}
-
-	return srv, nil
-}
-
+// FormatTime formats a time.Time to RFC3339 string
 func FormatTime(date time.Time) string {
 	return date.Format(time.RFC3339)
 }
 
-// getClient uses a Context and Config to retrieve a Token
-// then generate a Client. It returns the generated Client.
-func GetHttpClient(ctx context.Context, config *oauth2.Config) *http.Client {
-	cacheFile, err := tokenCacheFile()
-	if err != nil {
-		util.LogError(err, "Unable to get path to cached credential file")
-		return nil
-	}
-	tok, err := tokenFromFile(cacheFile)
-	if err != nil {
-		tok = getTokenFromWeb(config)
-		saveToken(cacheFile, tok)
-	}
-	return config.Client(ctx, tok)
-}
-
-// getTokenFromWeb uses Config to request a Token.
-// It returns the retrieved Token.
-func getTokenFromWeb(config *oauth2.Config) *oauth2.Token {
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
-	util.LogInfo("Please go to the following link in your browser", map[string]interface{}{
-		"url": authURL,
-	})
-
-	var code string
-	if _, err := fmt.Scan(&code); err != nil {
-		util.LogError(err, "Unable to read authorization code")
-		return nil
-	}
-
-	tok, err := config.Exchange(oauth2.NoContext, code)
-	if err != nil {
-		util.LogError(err, "Unable to retrieve token from web")
-		return nil
-	}
-	return tok
-}
-
-// tokenCacheFile generates credential file path/filename.
-// It returns the generated credential path/filename.
-func tokenCacheFile() (string, error) {
-	usr, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-	tokenCacheDir := filepath.Join(usr.HomeDir, ".credentials")
-	os.MkdirAll(tokenCacheDir, 0700)
-	return filepath.Join(tokenCacheDir,
-		url.QueryEscape("calendar-api.json")), err
-}
-
-// tokenFromFile retrieves a Token from a given file path.
-// It returns the retrieved Token and any read error encountered.
-func tokenFromFile(file string) (*oauth2.Token, error) {
-	f, err := os.Open(file)
+// GetEvents retrieves events from the calendar
+func (g *GCalendar) GetEvents(timeMin, timeMax time.Time) ([]*calendar.Event, error) {
+	events, err := g.service.Events.List("primary").ShowDeleted(false).
+		SingleEvents(true).TimeMin(FormatTime(timeMin)).TimeMax(FormatTime(timeMax)).
+		OrderBy("startTime").Do()
 	if err != nil {
 		return nil, err
 	}
-	t := &oauth2.Token{}
-	err = json.NewDecoder(f).Decode(t)
-	defer f.Close()
-	return t, err
+	return events.Items, nil
 }
 
-// saveToken uses a file path to create a file and store the
-// token in it.
-func saveToken(file string, token *oauth2.Token) {
-	util.LogInfo("Saving credential file", map[string]interface{}{
-		"path": file,
-	})
-	f, err := os.OpenFile(file, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+// GetNextEvents retrieves the next N events from the calendar
+func (g *GCalendar) GetNextEvents(timeMin time.Time, maxResults int64) ([]*calendar.Event, error) {
+	events, err := g.service.Events.List("primary").ShowDeleted(false).
+		SingleEvents(true).TimeMin(FormatTime(timeMin)).MaxResults(maxResults).
+		OrderBy("startTime").Do()
 	if err != nil {
-		util.LogError(err, "Unable to cache oauth token")
-		return
+		return nil, err
 	}
-	defer f.Close()
-	json.NewEncoder(f).Encode(token)
+	return events.Items, nil
+}
+
+// CreateEvent creates a new event in the calendar
+func (g *GCalendar) CreateEvent(event *calendar.Event) (*calendar.Event, error) {
+	return g.service.Events.Insert("primary", event).Do()
+}
+
+// UpdateEvent updates an existing event in the calendar
+func (g *GCalendar) UpdateEvent(event *calendar.Event) (*calendar.Event, error) {
+	return g.service.Events.Update("primary", event.Id, event).Do()
+}
+
+// DeleteEvent deletes an event from the calendar
+func (g *GCalendar) DeleteEvent(eventID string) error {
+	return g.service.Events.Delete("primary", eventID).Do()
+}
+
+// GetFreeBusy retrieves free/busy information for a list of calendars
+func (g *GCalendar) GetFreeBusy(timeMin, timeMax time.Time, calendars []string) (*calendar.FreeBusyResponse, error) {
+	timeMinStr := FormatTime(timeMin)
+	timeMaxStr := FormatTime(timeMax)
+
+	freeBusyRequest := &calendar.FreeBusyRequest{
+		TimeMin: timeMinStr,
+		TimeMax: timeMaxStr,
+		Items:   make([]*calendar.FreeBusyRequestItem, len(calendars)),
+	}
+
+	for i, cal := range calendars {
+		freeBusyRequest.Items[i] = &calendar.FreeBusyRequestItem{
+			Id: cal,
+		}
+	}
+
+	return g.service.Freebusy.Query(freeBusyRequest).Do()
+}
+
+// FindAvailableSlots finds available time slots for a list of calendars
+func (g *GCalendar) FindAvailableSlots(timeMin, timeMax time.Time, calendars []string, durationMinutes int) ([]types.Range, error) {
+	freeBusy, err := g.GetFreeBusy(timeMin, timeMax, calendars)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert free/busy information to ranges
+	var busyRanges []types.Range
+	for _, cal := range calendars {
+		if calBusy, ok := freeBusy.Calendars[cal]; ok {
+			for _, busy := range calBusy.Busy {
+				start, err := time.Parse(time.RFC3339, busy.Start)
+				if err != nil {
+					return nil, err
+				}
+				end, err := time.Parse(time.RFC3339, busy.End)
+				if err != nil {
+					return nil, err
+				}
+				busyRanges = append(busyRanges, types.Range{
+					Start: start,
+					End:   end,
+				})
+			}
+		}
+	}
+
+	// Find available slots
+	var availableSlots []types.Range
+	current := timeMin
+	duration := time.Duration(durationMinutes) * time.Minute
+
+	for current.Add(duration).Before(timeMax) || current.Add(duration).Equal(timeMax) {
+		slotEnd := current.Add(duration)
+		isAvailable := true
+
+		for _, busy := range busyRanges {
+			if (current.After(busy.Start) && current.Before(busy.End)) ||
+				(slotEnd.After(busy.Start) && slotEnd.Before(busy.End)) ||
+				(current.Before(busy.Start) && slotEnd.After(busy.End)) {
+				isAvailable = false
+				break
+			}
+		}
+
+		if isAvailable {
+			availableSlots = append(availableSlots, types.Range{
+				Start: current,
+				End:   slotEnd,
+			})
+		}
+
+		current = current.Add(time.Hour)
+	}
+
+	return availableSlots, nil
+}
+
+// CreateSessionEvent creates a session event in the calendar
+func (g *GCalendar) CreateSessionEvent(session *types.ReviewSession) (*calendar.Event, error) {
+	event := &calendar.Event{
+		Summary: session.GetEventSummary(),
+		Start: &calendar.EventDateTime{
+			DateTime: session.Range.Start.Format(time.RFC3339),
+			TimeZone: "UTC",
+		},
+		End: &calendar.EventDateTime{
+			DateTime: session.Range.End.Format(time.RFC3339),
+			TimeZone: "UTC",
+		},
+		Attendees: []*calendar.EventAttendee{
+			{Email: session.Reviewers.People[0].Email},
+			{Email: session.Reviewers.People[1].Email},
+		},
+		Reminders: &calendar.EventReminders{
+			UseDefault: false,
+			Overrides: []*calendar.EventReminder{
+				{Method: "email", Minutes: 24 * 60},
+				{Method: "popup", Minutes: 10},
+			},
+		},
+	}
+
+	return g.CreateEvent(event)
+}
+
+// GetBusyTimesForPeople retrieves busy times for multiple people across work ranges
+func (g *GCalendar) GetBusyTimesForPeople(people []*types.Person, workRanges []*types.Range) []*types.BusyTime {
+	busyTimes := []*types.BusyTime{}
+	for _, person := range people {
+		if !person.CanParticipateInSession() {
+			continue
+		}
+		for _, workRange := range workRanges {
+			personBusyTimes, err := g.GetBusyTimes(person, workRange)
+			util.PanicOnError(err, "Cannot load busy times for person")
+			busyTimes = append(busyTimes, personBusyTimes...)
+		}
+	}
+	return busyTimes
 }
 
 // GetBusyTimes retrieves busy time slots for a person within a given time range
@@ -191,24 +237,4 @@ func parseTime(dateStr string) time.Time {
 		return time.Time{}
 	}
 	return result
-}
-
-func (g *GCalendar) LogBusyTime(busyTime *types.BusyTime) {
-	util.LogRange("Busy time", busyTime.Range)
-}
-
-// GetBusyTimesForPeople retrieves busy times for multiple people across work ranges
-func (g *GCalendar) GetBusyTimesForPeople(people []*types.Person, workRanges []*types.Range) []*types.BusyTime {
-	busyTimes := []*types.BusyTime{}
-	for _, person := range people {
-		if !person.CanParticipateInSession() {
-			continue
-		}
-		for _, workRange := range workRanges {
-			personBusyTimes, err := g.GetBusyTimes(person, workRange)
-			util.PanicOnError(err, "Cannot load busy times for person")
-			busyTimes = append(busyTimes, personBusyTimes...)
-		}
-	}
-	return busyTimes
 }
