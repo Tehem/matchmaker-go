@@ -231,7 +231,7 @@ func TestScoreSession(t *testing.T) {
 	}
 	problem.BusyTimes = []*types.BusyTime{busyTime}
 
-	score, isValid = scoreSession(session, problem)
+	_, isValid = scoreSession(session, problem)
 	if isValid {
 		t.Error("scoreSession() returned valid for session with time conflict")
 	}
