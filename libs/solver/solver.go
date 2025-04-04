@@ -3,7 +3,6 @@ package solver
 import (
 	"fmt"
 	"matchmaker/libs/config"
-	"matchmaker/libs/squads"
 	"matchmaker/libs/types"
 	"matchmaker/libs/util"
 	"os"
@@ -55,7 +54,7 @@ type Solution struct {
 }
 
 func Solve(problem *types.Problem) *Solution {
-	squads := squads.GenerateSquads(problem.People, problem.BusyTimes)
+	squads := generateSquads(problem.People, problem.BusyTimes)
 	ranges := types.GenerateTimeRanges(problem.WorkRanges)
 	sessions := types.GenerateSessions(squads, ranges)
 
