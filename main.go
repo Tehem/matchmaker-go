@@ -2,7 +2,7 @@ package main
 
 import (
 	"matchmaker/commands"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 
 	"github.com/spf13/viper"
 )

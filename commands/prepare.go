@@ -2,9 +2,8 @@ package commands
 
 import (
 	"matchmaker/libs/gcalendar"
-	"matchmaker/libs/timeutil"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"os"
 	"path/filepath"
 
@@ -24,10 +23,10 @@ func loadProblem(weekShift int, groupFile string) *types.Problem {
 	util.PanicOnError(err, "Cannot connect to Google Calendar")
 	util.LogInfo("Connected to Google Calendar", nil)
 
-	firstDay := timeutil.FirstDayOfISOWeek(weekShift)
-	workRangesChan, err := timeutil.GetWeekWorkRanges(firstDay)
+	firstDay := util.FirstDayOfISOWeek(weekShift)
+	workRangesChan, err := util.GetWeekWorkRanges(firstDay)
 	util.PanicOnError(err, "Failed to get work ranges")
-	workRanges := timeutil.ToSlice(workRangesChan)
+	workRanges := util.ToSlice(workRangesChan)
 
 	busyTimes := cal.GetBusyTimesForPeople(people, workRanges)
 
