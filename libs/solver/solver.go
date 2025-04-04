@@ -55,7 +55,8 @@ type Solution struct {
 
 func Solve(problem *types.Problem) *Solution {
 	squads := generateSquads(problem.People, problem.BusyTimes)
-	ranges := types.GenerateTimeRanges(problem.WorkRanges)
+	sessionDuration := config.GetSessionDuration()
+	ranges := types.GenerateTimeRanges(problem.WorkRanges, sessionDuration)
 	sessions := types.GenerateSessions(squads, ranges)
 
 	printSquads(squads)
