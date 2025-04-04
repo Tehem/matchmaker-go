@@ -2,7 +2,7 @@ package solver
 
 import (
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"time"
 
 	"github.com/spf13/viper"

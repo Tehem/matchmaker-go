@@ -25,16 +25,25 @@ type WorkHours struct {
 	EndMinute   int
 }
 
+// timeNow is a variable that can be overridden in tests
+var timeNow = time.Now
+
 // FirstDayOfISOWeek returns the first day (Monday) of the ISO week with the given shift
 // weekShift: number of weeks to shift from the current week (0 for current week, 1 for next week, etc.)
 func FirstDayOfISOWeek(weekShift int) time.Time {
-	date := time.Now()
-	date = time.Date(date.Year(), date.Month(), date.Day(), date.Hour(), 0, 0, 0, date.Location())
-	date = date.AddDate(0, 0, 7*weekShift)
+	date := timeNow()
 
-	// iterate to Monday
-	for !(date.Weekday() == time.Monday && date.Hour() == 0) {
-		date = date.Add(time.Hour)
+	// Get to Monday of current week
+	for date.Weekday() != time.Monday {
+		date = date.AddDate(0, 0, -1)
+	}
+
+	// Set time to midnight
+	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+
+	// Apply week shift
+	if weekShift != 0 {
+		date = date.AddDate(0, 0, 7*weekShift)
 	}
 
 	return date

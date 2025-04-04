@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"os"
 	"path/filepath"
 	"time"

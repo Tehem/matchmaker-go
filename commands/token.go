@@ -2,7 +2,7 @@ package commands
 
 import (
 	"matchmaker/libs/gcalendar"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"time"
 
 	"github.com/spf13/cobra"

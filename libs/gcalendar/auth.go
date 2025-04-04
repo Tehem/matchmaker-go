@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"net/http"
 	"net/http/httptest"
 	"net/url"

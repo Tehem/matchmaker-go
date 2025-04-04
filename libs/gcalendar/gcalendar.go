@@ -3,7 +3,7 @@ package gcalendar
 import (
 	"fmt"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"time"
 
 	"google.golang.org/api/calendar/v3"

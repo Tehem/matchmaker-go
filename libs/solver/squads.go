@@ -5,7 +5,7 @@ package solver
 
 import (
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"math/rand"
 )
 

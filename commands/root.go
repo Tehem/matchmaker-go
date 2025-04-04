@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"os"
 
 	"github.com/spf13/cobra"

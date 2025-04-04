@@ -34,6 +34,8 @@ func PanicOnError(err error, message string) {
 func LogError(err error, message string) {
 	if err != nil {
 		logrus.WithError(err).Error(message)
+	} else {
+		logrus.Error(message)
 	}
 }
 

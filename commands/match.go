@@ -4,7 +4,7 @@ import (
 	"flag"
 	"matchmaker/libs/solver"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"os"
 	"runtime/pprof"
 
