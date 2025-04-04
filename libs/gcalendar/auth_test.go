@@ -6,18 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
-
-	"golang.org/x/oauth2"
-	"google.golang.org/api/calendar/v3"
 )
-
-// MockCalendarService creates a mock calendar service for testing
-func MockCalendarService() (*calendar.Service, error) {
-	// Create a mock service
-	service := &calendar.Service{}
-	return service, nil
-}
 
 func TestTokenCacheFile(t *testing.T) {
 	// Create a config mock
@@ -81,12 +70,7 @@ func TestSaveToken(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Create a mock token
-	token := &oauth2.Token{
-		AccessToken:  "test-access-token",
-		TokenType:    "Bearer",
-		RefreshToken: "test-refresh-token",
-		Expiry:       time.Now().Add(1 * time.Hour),
-	}
+	token := testutils.CreateMockToken()
 
 	// Save the token
 	SaveToken(tempFile.Name(), token)
@@ -131,12 +115,7 @@ func TestTokenFromFile(t *testing.T) {
 	defer os.Remove(tempFile.Name())
 
 	// Create a mock token
-	token := &oauth2.Token{
-		AccessToken:  "test-access-token",
-		TokenType:    "Bearer",
-		RefreshToken: "test-refresh-token",
-		Expiry:       time.Now().Add(1 * time.Hour),
-	}
+	token := testutils.CreateMockToken()
 
 	// Save the token
 	SaveToken(tempFile.Name(), token)
@@ -166,16 +145,7 @@ func TestGetClient(t *testing.T) {
 	defer configMock.Restore()
 
 	// Create a mock OAuth2 config
-	config := &oauth2.Config{
-		ClientID:     "test-client-id",
-		ClientSecret: "test-client-secret",
-		RedirectURL:  "http://localhost:8080",
-		Scopes:       []string{"https://www.googleapis.com/auth/calendar"},
-		Endpoint: oauth2.Endpoint{
-			AuthURL:  "https://accounts.google.com/o/oauth2/auth",
-			TokenURL: "https://oauth2.googleapis.com/token",
-		},
-	}
+	config := testutils.CreateMockOAuthConfig()
 
 	// Get the client
 	client := GetClient(config)
