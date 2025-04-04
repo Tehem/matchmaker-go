@@ -138,7 +138,7 @@ func (g *GCalendar) FindAvailableSlots(timeMin, timeMax time.Time, calendars []s
 			})
 		}
 
-		current = current.Add(time.Hour)
+		current = current.Add(duration)
 	}
 
 	return availableSlots, nil
