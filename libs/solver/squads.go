@@ -1,11 +1,11 @@
 package solver
 
-// This file is intentionally left empty as the generateSquads function
-// has been moved to the squads package.
+// This file contains the implementation of the generateSquads function
+// which was previously in the squads package.
 
 import (
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"math/rand"
 )
 

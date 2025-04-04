@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"os"
 	"path/filepath"
 	"sort"
@@ -169,7 +169,7 @@ func loadBatch(batchID string) *types.EventBatch {
 
 // rollbackBatch deletes all events in a batch and handles the batch file
 func rollbackBatch(batch *types.EventBatch, batchID string) {
-	cal, err := gcalendar.GetGoogleCalendarService()
+	cal, err := gcalendar.GetCalendarService()
 	util.PanicOnError(err, "Can't get gcalendar client")
 
 	successfulDeletions, failedDeletions := deleteEvents(cal, batch.Events)

@@ -43,7 +43,7 @@ func TestReviewSession(t *testing.T) {
 
 	// Test GetDisplayName() method
 	viper.SetDefault("sessions.sessionPrefix", "Review")
-	expectedDisplayName := "Review - john.doe & jane.smith"
+	expectedDisplayName := "2024-04-01: 09:00 -> 10:00 - Review - john.doe & jane.smith"
 	if session.GetDisplayName() != expectedDisplayName {
 		t.Errorf("GetDisplayName() returned %q, want %q", session.GetDisplayName(), expectedDisplayName)
 	}

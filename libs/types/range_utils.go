@@ -1,7 +1,6 @@
 package types
 
 import (
-	"matchmaker/libs/config"
 	"math/rand"
 	"sort"
 	"time"
@@ -50,8 +49,7 @@ func (r *Range) Pad(padding time.Duration) *Range {
 }
 
 // GenerateTimeRanges generates time ranges for the given work ranges
-func GenerateTimeRanges(workRanges []*Range) []*Range {
-	sessionDuration := config.GetSessionDuration()
+func GenerateTimeRanges(workRanges []*Range, sessionDuration time.Duration) []*Range {
 	ranges := []*Range{}
 
 	for _, workRange := range workRanges {

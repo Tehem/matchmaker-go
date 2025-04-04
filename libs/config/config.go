@@ -97,3 +97,37 @@ func validateTimeRange(startHour, startMinute, endHour, endMinute int) error {
 
 	return nil
 }
+
+// Initialize sets up the configuration with default values and loads the config file
+func Initialize() error {
+	viper.AddConfigPath("./configs")
+	viper.SetConfigName("config")
+	viper.SetConfigType("json")
+
+	// Default sessions config
+	viper.SetDefault(SessionDurationMinutes, 60)
+	viper.SetDefault(MinSessionSpacingHours, 8)
+	viper.SetDefault(MaxSessionsPerPersonPerWeek, 2)
+	viper.SetDefault(SessionPrefix, "Pairing")
+
+	// Default working hours
+	viper.SetDefault(WorkingHoursTimezone, "Europe/Paris")
+	viper.SetDefault(WorkingHoursMorningStartHour, 10)
+	viper.SetDefault(WorkingHoursMorningStartMinute, 0)
+	viper.SetDefault(WorkingHoursMorningEndHour, 12)
+	viper.SetDefault(WorkingHoursMorningEndMinute, 0)
+	viper.SetDefault(WorkingHoursAfternoonStartHour, 14)
+	viper.SetDefault(WorkingHoursAfternoonStartMinute, 0)
+	viper.SetDefault(WorkingHoursAfternoonEndHour, 18)
+	viper.SetDefault(WorkingHoursAfternoonEndMinute, 0)
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return fmt.Errorf("config file not found. Please initialize it with `cp configs/config.json.example configs/config.json` and adjust values accordingly")
+		}
+		return fmt.Errorf("error reading config file: %w", err)
+	}
+
+	return nil
+}

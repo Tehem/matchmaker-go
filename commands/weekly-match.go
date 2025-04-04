@@ -3,9 +3,8 @@ package commands
 import (
 	"matchmaker/libs/gcalendar"
 	"matchmaker/libs/solver"
-	"matchmaker/libs/timeutil"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -152,10 +151,10 @@ func processTuplesAndCreateSessions(tuples types.Tuples, cal *gcalendar.GCalenda
 			"person2":    tuple.Person2.Email,
 		})
 
-		beginOfWeek := timeutil.FirstDayOfISOWeek(weekShift)
-		workRangesChan, err := timeutil.GetWeekWorkRanges(beginOfWeek)
+		beginOfWeek := util.FirstDayOfISOWeek(weekShift)
+		workRangesChan, err := util.GetWeekWorkRanges(beginOfWeek)
 		util.PanicOnError(err, "Failed to get work ranges")
-		workRanges := timeutil.ToSlice(workRangesChan)
+		workRanges := util.ToSlice(workRangesChan)
 		busyTimes := getBusyTimesForTuple(tuple, workRanges, cal)
 
 		// Log problem details

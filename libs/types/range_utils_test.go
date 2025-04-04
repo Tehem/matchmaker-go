@@ -1,11 +1,8 @@
 package types
 
 import (
-	"matchmaker/libs/testutils"
 	"testing"
 	"time"
-
-	"github.com/spf13/viper"
 )
 
 func TestMergeRanges(t *testing.T) {
@@ -81,29 +78,23 @@ func TestPad(t *testing.T) {
 }
 
 func TestGenerateTimeRanges(t *testing.T) {
-	// Setup config mock
-	mock := testutils.NewConfigMock()
-	mock.SetupWorkHours()
-	viper.Set("sessions.sessionDurationMinutes", 30)
-	defer mock.Restore()
-
-	// Create test work ranges
-	start := time.Date(2024, 4, 1, 9, 0, 0, 0, time.UTC)
+	// Create a work range from 9:00 to 17:00
 	workRange := &Range{
-		Start: start,
-		End:   start.Add(2 * time.Hour),
+		Start: time.Date(2024, 4, 1, 9, 0, 0, 0, time.UTC),
+		End:   time.Date(2024, 4, 1, 17, 0, 0, 0, time.UTC),
 	}
 
-	// Generate time ranges
-	ranges := GenerateTimeRanges([]*Range{workRange})
+	// Generate time ranges with 30-minute sessions
+	sessionDuration := 30 * time.Minute
+	ranges := GenerateTimeRanges([]*Range{workRange}, sessionDuration)
 
 	// Verify that we got the correct number of ranges
-	// Expected: 4 ranges (2 hours / 30 minutes = 4 ranges)
-	if len(ranges) != 4 {
-		t.Errorf("GenerateTimeRanges() returned %d ranges, want 4", len(ranges))
+	// 8 hours = 480 minutes, with 30-minute sessions = 16 sessions
+	if len(ranges) != 16 {
+		t.Errorf("GenerateTimeRanges() returned %d ranges, want 16", len(ranges))
 	}
 
-	// Verify that all ranges have the correct duration
+	// Verify that each range has the correct duration
 	for _, r := range ranges {
 		if r.Minutes() != 30 {
 			t.Errorf("GenerateTimeRanges() range duration is %v minutes, want 30", r.Minutes())
@@ -125,7 +116,7 @@ func TestGenerateTimeRanges(t *testing.T) {
 	}
 
 	// Verify that ranges don't overlap
-	for i := 0; i < len(ranges)-1; i++ {
+	for i := 0; i < len(ranges); i++ {
 		for j := i + 1; j < len(ranges); j++ {
 			if ranges[i].Overlaps(ranges[j]) {
 				t.Errorf("GenerateTimeRanges() ranges %v-%v and %v-%v overlap", ranges[i].Start, ranges[i].End, ranges[j].Start, ranges[j].End)

@@ -3,9 +3,8 @@ package solver
 import (
 	"fmt"
 	"matchmaker/libs/config"
-	"matchmaker/libs/squads"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"os"
 	"os/signal"
 	"sort"
@@ -19,9 +18,35 @@ import (
 	"golang.org/x/text/language"
 )
 
+// These constants control the search behavior of the matching algorithm.
+// They implement a form of "beam search" or "limited breadth-first search"
+// to balance between finding good solutions and keeping computation time reasonable.
 const (
-	maxWidthExploration      = 10
-	maxExplorationPathLength = 5
+	// maxWidthExploration limits the "width" of the search tree during exploration.
+	// It controls how many alternative solutions the algorithm will explore at each decision point.
+	// When the algorithm finds multiple possible matches, it will only explore up to this many options.
+	//
+	// Current value: 2 (explores only the 2 best alternatives at each step)
+	//
+	// Recommendations:
+	// - For small groups (10-20 people): 2-3 is sufficient
+	// - For medium groups (20-50 people): 3-5 provides better results
+	// - For large groups (50+ people): 5-10 may be needed for optimal results
+	// - Higher values improve solution quality but increase computation time exponentially
+	maxWidthExploration = 3
+
+	// maxExplorationPathLength limits the "depth" of the search tree during exploration.
+	// It controls how many sequential decisions the algorithm will make before stopping a particular path.
+	// The algorithm stops exploring any path that exceeds this length after the first decision.
+	//
+	// Current value: 10 (stops exploring paths longer than 10 steps)
+	//
+	// Recommendations:
+	// - For weekly planning: 5-10 is typically sufficient
+	// - For monthly planning: 10-15 may be needed
+	// - For quarterly planning: 15-20 could be beneficial
+	// - Higher values allow for more complex solution paths but increase computation time
+	maxExplorationPathLength = 10
 )
 
 type Solution struct {
@@ -29,8 +54,9 @@ type Solution struct {
 }
 
 func Solve(problem *types.Problem) *Solution {
-	squads := squads.GenerateSquads(problem.People, problem.BusyTimes)
-	ranges := types.GenerateTimeRanges(problem.WorkRanges)
+	squads := generateSquads(problem.People, problem.BusyTimes)
+	sessionDuration := config.GetSessionDuration()
+	ranges := types.GenerateTimeRanges(problem.WorkRanges, sessionDuration)
 	sessions := types.GenerateSessions(squads, ranges)
 
 	printSquads(squads)

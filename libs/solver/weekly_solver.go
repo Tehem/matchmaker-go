@@ -1,8 +1,9 @@
 package solver
 
 import (
+	"matchmaker/libs/config"
 	"matchmaker/libs/types"
-	"matchmaker/util"
+	"matchmaker/libs/util"
 	"time"
 
 	"github.com/spf13/viper"
@@ -20,8 +21,9 @@ func WeeklySolve(problem *types.Problem) *WeeklySolveResult {
 	// Generate squads for the tuple
 	squads := generateSquadsForTuple(problem.People, problem.BusyTimes)
 
-	// Generate time ranges for the week
-	ranges := types.GenerateTimeRanges(problem.WorkRanges)
+	// Generate time ranges for the work ranges
+	sessionDuration := config.GetSessionDuration()
+	ranges := types.GenerateTimeRanges(problem.WorkRanges, sessionDuration)
 
 	// Generate possible sessions
 	sessions := types.GenerateSessions(squads, ranges)
