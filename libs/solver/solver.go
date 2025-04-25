@@ -254,7 +254,7 @@ func isSessionCompatible(session *types.ReviewSession, sessions []*types.ReviewS
 	// check the max reviews per person
 	maxSessionsForPerson0 := person0.MaxSessionsPerWeek
 	maxSessionsForPerson1 := person1.MaxSessionsPerWeek
-	if maxSessionsForPerson0 == 0 && maxSessionsForPerson1 == 0 {
+	if maxSessionsForPerson0 == 0 || maxSessionsForPerson1 == 0 {
 		return false
 	}
 	return person0.GetSessionCount() < maxSessionsForPerson0 &&
