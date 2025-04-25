@@ -41,8 +41,8 @@ func FirstDayOfISOWeek(weekShift int) time.Time {
 	// Set time to midnight
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 
-	// Apply a week shift if needed (default is next week)
-	date = date.AddDate(0, 0, 7*(weekShift+1))
+	// Apply a week shift if needed
+	date = date.AddDate(0, 0, 7*weekShift)
 
 	return date
 }

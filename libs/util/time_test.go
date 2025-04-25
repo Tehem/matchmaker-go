@@ -9,36 +9,24 @@ import (
 )
 
 func TestFirstDayOfISOWeek(t *testing.T) {
-	// Create a fixed date for testing (Wednesday, April 3, 2024)
-	fixedNow := time.Date(2024, 4, 3, 15, 30, 0, 0, time.UTC)
-
-	// Save the original timeNow and restore it after the test
-	originalTimeNow := timeNow
-	defer func() { timeNow = originalTimeNow }()
+	// Set a fixed date for testing
+	fixedDate := time.Date(2024, time.April, 3, 15, 30, 0, 0, time.UTC)
 	timeNow = func() time.Time {
-		return fixedNow
+		return fixedDate
 	}
+	defer func() { timeNow = time.Now }()
 
-	// Test with weekShift = 0 (current week)
-	monday := FirstDayOfISOWeek(0)
-	expectedMonday := time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, expectedMonday, monday)
-	assert.Equal(t, time.Monday, monday.Weekday())
-	assert.Equal(t, 0, monday.Hour())
+	// Test current week (weekShift=0)
+	result := FirstDayOfISOWeek(0)
+	assert.Equal(t, time.Date(2024, time.April, 1, 0, 0, 0, 0, time.UTC), result)
 
-	// Test with weekShift = 1 (next week)
-	nextMonday := FirstDayOfISOWeek(1)
-	expectedNextMonday := time.Date(2024, 4, 8, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, expectedNextMonday, nextMonday)
-	assert.Equal(t, time.Monday, nextMonday.Weekday())
-	assert.Equal(t, 0, nextMonday.Hour())
+	// Test next week (weekShift=1)
+	result = FirstDayOfISOWeek(1)
+	assert.Equal(t, time.Date(2024, time.April, 8, 0, 0, 0, 0, time.UTC), result)
 
-	// Test with weekShift = -1 (previous week)
-	prevMonday := FirstDayOfISOWeek(-1)
-	expectedPrevMonday := time.Date(2024, 3, 25, 0, 0, 0, 0, time.UTC)
-	assert.Equal(t, expectedPrevMonday, prevMonday)
-	assert.Equal(t, time.Monday, prevMonday.Weekday())
-	assert.Equal(t, 0, prevMonday.Hour())
+	// Test previous week (weekShift=-1)
+	result = FirstDayOfISOWeek(-1)
+	assert.Equal(t, time.Date(2024, time.March, 25, 0, 0, 0, 0, time.UTC), result)
 }
 
 func TestGetWorkRange(t *testing.T) {
