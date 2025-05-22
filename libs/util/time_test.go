@@ -220,7 +220,8 @@ func TestGetWeekWorkRanges(t *testing.T) {
 
 	// Verify ranges don't include Easter Monday
 	for _, r := range ranges {
-		assert.NotEqual(t, time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC).Day(), r.Start.Day(),
+		easterMonday := time.Date(2024, 4, 1, 0, 0, 0, 0, time.UTC)
+		assert.False(t, r.Start.Month() == easterMonday.Month() && r.Start.Day() == easterMonday.Day(),
 			"Ranges should not include Easter Monday")
 	}
 
