@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"matchmaker/libs/config"
+	"matchmaker/libs/holidays"
 	"matchmaker/libs/types"
 	"time"
 )
@@ -29,7 +30,7 @@ type WorkHours struct {
 var timeNow = time.Now
 
 // FirstDayOfISOWeek returns the first day (Monday) of the ISO week with the given shift
-// weekShift: number of weeks to shift from the current week (0 for current week, 1 for next week, etc.)
+// weekShift: number of weeks to shift from next week (0 for next week, 1 for the week after, etc.)
 func FirstDayOfISOWeek(weekShift int) time.Time {
 	date := timeNow()
 
@@ -41,8 +42,8 @@ func FirstDayOfISOWeek(weekShift int) time.Time {
 	// Set time to midnight
 	date = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 
-	// Apply a week shift if needed
-	date = date.AddDate(0, 0, 7*weekShift)
+	// Add one week to get to next week, then apply the additional shift
+	date = date.AddDate(0, 0, 7*(weekShift+1))
 
 	return date
 }
@@ -108,10 +109,59 @@ func GetWeekWorkRanges(beginOfWeek time.Time) (chan *types.Range, error) {
 		return nil, fmt.Errorf("invalid afternoon hours configuration: %w", err)
 	}
 
+	// Get the country from config
+	country := holidays.Country(config.GetCountry())
+
+	// Calculate the end of the week (Friday)
+	endOfWeek := beginOfWeek.AddDate(0, 0, WorkDaysPerWeek-1)
+
+	// Fetch all holidays for the week at once
+	weekHolidays, err := holidays.GetHolidaysForRange(country, beginOfWeek, endOfWeek)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch holidays: %w", err)
+	}
+
+	// Log holidays found for the week
+	if len(weekHolidays) > 0 {
+		LogInfo("Holidays found for the week", map[string]interface{}{
+			"start":    beginOfWeek.Format("2006-01-02"),
+			"end":      endOfWeek.Format("2006-01-02"),
+			"country":  country,
+			"holidays": weekHolidays,
+		})
+	} else {
+		LogInfo("No holidays found for the week", map[string]interface{}{
+			"start":   beginOfWeek.Format("2006-01-02"),
+			"end":     endOfWeek.Format("2006-01-02"),
+			"country": country,
+		})
+	}
+
+	// Create a map of holidays for quick lookup
+	holidayMap := make(map[string]bool)
+	for _, holiday := range weekHolidays {
+		// Store the date in YYYY-MM-DD format for comparison
+		holidayDate := holiday.Date.Format("2006-01-02")
+		holidayMap[holidayDate] = true
+		LogInfo("Skipping holiday", map[string]interface{}{
+			"date":    holidayDate,
+			"holiday": holiday.Name,
+			"country": country,
+		})
+	}
+
 	go func() {
 		defer close(ranges)
 
 		for day := 0; day < WorkDaysPerWeek; day++ {
+			currentDate := beginOfWeek.AddDate(0, 0, day)
+			dateStr := currentDate.Format("2006-01-02")
+
+			// Skip if this day is a holiday
+			if holidayMap[dateStr] {
+				continue
+			}
+
 			// Morning range
 			if morningRange, err := GetWorkRange(beginOfWeek, day,
 				morningHours.StartHour, morningHours.StartMinute,

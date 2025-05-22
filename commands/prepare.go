@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"matchmaker/libs/gcalendar"
 	"matchmaker/libs/types"
 	"matchmaker/libs/util"
@@ -23,10 +24,28 @@ func loadProblem(weekShift int, groupFile string) *types.Problem {
 	util.PanicOnError(err, "Cannot connect to Google Calendar")
 	util.LogInfo("Connected to Google Calendar", nil)
 
-	firstDay := util.FirstDayOfISOWeek(weekShift)
-	workRangesChan, err := util.GetWeekWorkRanges(firstDay)
-	util.PanicOnError(err, "Failed to get work ranges")
+	beginOfWeek := util.FirstDayOfISOWeek(weekShift)
+	workRangesChan, err := util.GetWeekWorkRanges(beginOfWeek)
+	if err != nil {
+		panic(fmt.Errorf("failed to get work ranges: %w", err))
+	}
 	workRanges := util.ToSlice(workRangesChan)
+
+	// Log work ranges in a human-readable format
+	util.LogInfo("Work ranges for the week", map[string]interface{}{
+		"start": beginOfWeek.Format("2006-01-02"),
+		"end":   beginOfWeek.AddDate(0, 0, 4).Format("2006-01-02"), // Friday
+		"ranges": func() []string {
+			var ranges []string
+			for _, r := range workRanges {
+				ranges = append(ranges, fmt.Sprintf("%s %s-%s",
+					r.Start.Format("Mon 2006-01-02"),
+					r.Start.Format("15:04"),
+					r.End.Format("15:04")))
+			}
+			return ranges
+		}(),
+	})
 
 	busyTimes := cal.GetBusyTimesForPeople(people, workRanges)
 

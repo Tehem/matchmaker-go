@@ -22,6 +22,7 @@ const (
 	MinSessionSpacingHours           = "sessions.minSessionSpacingHours"
 	MaxSessionsPerPersonPerWeek      = "sessions.maxPerPersonPerWeek"
 	SessionPrefix                    = "sessions.sessionPrefix"
+	Country                          = "country"
 )
 
 // WorkHoursConfig represents the configuration for work hours
@@ -78,6 +79,11 @@ func GetSessionPrefix() string {
 	return viper.GetString(SessionPrefix)
 }
 
+// GetCountry returns the configured country code
+func GetCountry() string {
+	return viper.GetString(Country)
+}
+
 // validateTimeRange checks if the time range is valid
 func validateTimeRange(startHour, startMinute, endHour, endMinute int) error {
 	if startHour < 0 || startHour >= 24 || endHour < 0 || endHour >= 24 {
@@ -120,6 +126,9 @@ func Initialize() error {
 	viper.SetDefault(WorkingHoursAfternoonStartMinute, 0)
 	viper.SetDefault(WorkingHoursAfternoonEndHour, 18)
 	viper.SetDefault(WorkingHoursAfternoonEndMinute, 0)
+
+	// Set default values
+	viper.SetDefault(Country, "FR") // Default to France
 
 	err := viper.ReadInConfig()
 	if err != nil {
