@@ -213,6 +213,13 @@ func isSessionCompatible(session *types.ReviewSession, sessions []*types.ReviewS
 	people := reviewers.People
 	minSessionSpacingHours := config.GetMinSessionSpacing()
 
+	// Check for conflicts with busy times
+	for _, busyRange := range reviewers.BusyRanges {
+		if session.Range.Overlaps(busyRange) {
+			return false
+		}
+	}
+
 	person0 := people[0]
 	person0.ResetSessionCount()
 	person1 := people[1]

@@ -46,6 +46,7 @@ func TestIsSessionCompatible(t *testing.T) {
 		session  *types.ReviewSession
 		sessions []*types.ReviewSession
 		want     bool
+		setup    func()
 	}{
 		{
 			name:     "empty sessions list",
@@ -74,11 +75,86 @@ func TestIsSessionCompatible(t *testing.T) {
 			sessions: []*types.ReviewSession{session1},
 			want:     true,
 		},
+		{
+			name:     "session conflicts with busy time",
+			session:  session1,
+			sessions: []*types.ReviewSession{},
+			want:     false,
+			setup: func() {
+				// Add a busy time that conflicts with the session
+				squad1.BusyRanges = []*types.Range{{
+					Start: start.Add(30 * time.Minute),
+					End:   start.Add(90 * time.Minute),
+				}}
+			},
+		},
+		{
+			name:     "session overlaps with busy time",
+			session:  session1,
+			sessions: []*types.ReviewSession{},
+			want:     false,
+			setup: func() {
+				// Add a busy time that overlaps with the session
+				squad1.BusyRanges = []*types.Range{{
+					Start: start.Add(-30 * time.Minute),
+					End:   start.Add(30 * time.Minute),
+				}}
+			},
+		},
+		{
+			name:     "session contained within busy time",
+			session:  session1,
+			sessions: []*types.ReviewSession{},
+			want:     false,
+			setup: func() {
+				// Add a busy time that completely contains the session
+				squad1.BusyRanges = []*types.Range{{
+					Start: start.Add(-30 * time.Minute),
+					End:   start.Add(90 * time.Minute),
+				}}
+			},
+		},
+		{
+			name:     "session contains busy time",
+			session:  session1,
+			sessions: []*types.ReviewSession{},
+			want:     false,
+			setup: func() {
+				// Add a busy time that is completely contained within the session
+				squad1.BusyRanges = []*types.Range{{
+					Start: start.Add(15 * time.Minute),
+					End:   start.Add(45 * time.Minute),
+				}}
+			},
+		},
+		{
+			name:     "session adjacent to busy time",
+			session:  session1,
+			sessions: []*types.ReviewSession{},
+			want:     true,
+			setup: func() {
+				// Add a busy time that is adjacent to the session
+				squad1.BusyRanges = []*types.Range{{
+					Start: start.Add(time.Hour),
+					End:   start.Add(2 * time.Hour),
+				}}
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := isSessionCompatible(tt.session, tt.sessions); got != tt.want {
+			// Reset busy ranges before each test
+			squad1.BusyRanges = []*types.Range{}
+			squad2.BusyRanges = []*types.Range{}
+
+			// Run setup if provided
+			if tt.setup != nil {
+				tt.setup()
+			}
+
+			got := isSessionCompatible(tt.session, tt.sessions)
+			if got != tt.want {
 				t.Errorf("isSessionCompatible() = %v, want %v", got, tt.want)
 			}
 		})
