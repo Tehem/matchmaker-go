@@ -121,14 +121,10 @@ func TestScoreSession(t *testing.T) {
 	person1 := &types.Person{Email: "person1@example.com", MaxSessionsPerWeek: 2}
 	person2 := &types.Person{Email: "person2@example.com", MaxSessionsPerWeek: 2}
 
-	// Create test squad
+	// Create test squad with busy ranges
 	squad := &types.Squad{
-		People: []*types.Person{person1, person2},
-	}
-
-	// Create test problem
-	problem := &types.Problem{
-		People: []*types.Person{person1, person2},
+		People:     []*types.Person{person1, person2},
+		BusyRanges: []*types.Range{},
 	}
 
 	// Test with session in preferred morning slot on Wednesday (best case)
@@ -140,7 +136,7 @@ func TestScoreSession(t *testing.T) {
 		Range:     &types.Range{Start: start, End: start.Add(time.Hour)},
 	}
 
-	score, isValid := scoreSession(session, problem)
+	score, isValid := scoreSession(session)
 	if !isValid {
 		t.Error("scoreSession() returned invalid for valid session")
 	}
@@ -158,7 +154,7 @@ func TestScoreSession(t *testing.T) {
 		Range:     &types.Range{Start: start, End: start.Add(time.Hour)},
 	}
 
-	score, isValid = scoreSession(session, problem)
+	score, isValid = scoreSession(session)
 	if !isValid {
 		t.Error("scoreSession() returned invalid for valid session")
 	}
@@ -176,7 +172,7 @@ func TestScoreSession(t *testing.T) {
 		Range:     &types.Range{Start: start, End: start.Add(time.Hour)},
 	}
 
-	score, isValid = scoreSession(session, problem)
+	score, isValid = scoreSession(session)
 	if !isValid {
 		t.Error("scoreSession() returned invalid for valid session")
 	}
@@ -194,7 +190,7 @@ func TestScoreSession(t *testing.T) {
 		Range:     &types.Range{Start: start, End: start.Add(time.Hour)},
 	}
 
-	score, isValid = scoreSession(session, problem)
+	score, isValid = scoreSession(session)
 	if !isValid {
 		t.Error("scoreSession() returned invalid for valid session")
 	}
@@ -212,7 +208,7 @@ func TestScoreSession(t *testing.T) {
 		Range:     &types.Range{Start: start, End: start.Add(time.Hour)},
 	}
 
-	score, isValid = scoreSession(session, problem)
+	score, isValid = scoreSession(session)
 	if !isValid {
 		t.Error("scoreSession() returned invalid for valid session")
 	}
@@ -221,17 +217,14 @@ func TestScoreSession(t *testing.T) {
 		t.Errorf("scoreSession() returned score %d for regular afternoon slot on Thursday, want 25", score)
 	}
 
-	// Test with session conflicting with busy time
-	busyTime := &types.BusyTime{
-		Person: person1,
-		Range: &types.Range{
-			Start: start,
-			End:   start.Add(time.Hour),
-		},
+	// Test with session conflicting with busy range
+	busyRange := &types.Range{
+		Start: start,
+		End:   start.Add(time.Hour),
 	}
-	problem.BusyTimes = []*types.BusyTime{busyTime}
+	squad.BusyRanges = []*types.Range{busyRange}
 
-	_, isValid = scoreSession(session, problem)
+	_, isValid = scoreSession(session)
 	if isValid {
 		t.Error("scoreSession() returned valid for session with time conflict")
 	}
@@ -242,33 +235,34 @@ func TestHasTimeConflict(t *testing.T) {
 	start := time.Date(2024, 4, 1, 9, 0, 0, 0, time.UTC)
 	session := &types.ReviewSession{
 		Range: &types.Range{Start: start, End: start.Add(time.Hour)},
-	}
-
-	// Test with no busy times
-	if hasTimeConflict(session, []*types.BusyTime{}) {
-		t.Error("hasTimeConflict() returned true for session with no busy times")
-	}
-
-	// Test with non-conflicting busy time
-	busyTime := &types.BusyTime{
-		Range: &types.Range{
-			Start: start.Add(2 * time.Hour),
-			End:   start.Add(3 * time.Hour),
+		Reviewers: &types.Squad{
+			BusyRanges: []*types.Range{},
 		},
 	}
-	if hasTimeConflict(session, []*types.BusyTime{busyTime}) {
-		t.Error("hasTimeConflict() returned true for session with non-conflicting busy time")
+
+	// Test with no busy ranges
+	if hasTimeConflict(session) {
+		t.Error("hasTimeConflict() returned true for session with no busy ranges")
 	}
 
-	// Test with conflicting busy time
-	busyTime = &types.BusyTime{
-		Range: &types.Range{
-			Start: start.Add(30 * time.Minute),
-			End:   start.Add(90 * time.Minute),
-		},
+	// Test with non-conflicting busy range
+	busyRange := &types.Range{
+		Start: start.Add(2 * time.Hour),
+		End:   start.Add(3 * time.Hour),
 	}
-	if !hasTimeConflict(session, []*types.BusyTime{busyTime}) {
-		t.Error("hasTimeConflict() returned false for session with conflicting busy time")
+	session.Reviewers.BusyRanges = []*types.Range{busyRange}
+	if hasTimeConflict(session) {
+		t.Error("hasTimeConflict() returned true for session with non-conflicting busy range")
+	}
+
+	// Test with conflicting busy range
+	busyRange = &types.Range{
+		Start: start.Add(30 * time.Minute),
+		End:   start.Add(90 * time.Minute),
+	}
+	session.Reviewers.BusyRanges = []*types.Range{busyRange}
+	if !hasTimeConflict(session) {
+		t.Error("hasTimeConflict() returned false for session with conflicting busy range")
 	}
 }
 

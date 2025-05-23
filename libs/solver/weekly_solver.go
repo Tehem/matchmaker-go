@@ -35,7 +35,7 @@ func WeeklySolve(problem *types.Problem) *WeeklySolveResult {
 
 	for _, session := range sessions {
 		// Score the session based on how well it fits
-		score, isValid := scoreSession(session, problem)
+		score, isValid := scoreSession(session)
 
 		// Skip invalid sessions
 		if !isValid {
@@ -102,9 +102,9 @@ func generateSquadsForTuple(people []*types.Person, busyTimes []*types.BusyTime)
 
 // scoreSession assigns a score to a session based on how well it fits
 // Returns (score, isValid) where isValid indicates if the session is valid
-func scoreSession(session *types.ReviewSession, problem *types.Problem) (int, bool) {
-	// Check if the session conflicts with any busy times
-	if hasTimeConflict(session, problem.BusyTimes) {
+func scoreSession(session *types.ReviewSession) (int, bool) {
+	// Check if the session conflicts with any busy times in the squad
+	if hasTimeConflict(session) {
 		return 0, false // Invalid session
 	}
 
@@ -123,10 +123,10 @@ func scoreSession(session *types.ReviewSession, problem *types.Problem) (int, bo
 	return score, true
 }
 
-// hasTimeConflict checks if a session conflicts with any busy times
-func hasTimeConflict(session *types.ReviewSession, busyTimes []*types.BusyTime) bool {
-	for _, busyTime := range busyTimes {
-		if session.Range.Overlaps(busyTime.Range) {
+// hasTimeConflict checks if a session conflicts with any busy times in its squad
+func hasTimeConflict(session *types.ReviewSession) bool {
+	for _, busyRange := range session.Reviewers.BusyRanges {
+		if session.Range.Overlaps(busyRange) {
 			return true
 		}
 	}
